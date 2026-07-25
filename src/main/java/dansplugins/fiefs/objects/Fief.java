@@ -43,8 +43,11 @@ public class Fief {
 
     public Fief(Map<String, String> fiefData, MedievalFactionsIntegrator medievalFactionsIntegrator, Logger logger) {
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
-        this.load(fiefData);
+        // flags MUST be assigned before load(), which dereferences it five times. javac does not track
+        // definite assignment through a method call, so the old order compiled cleanly and then threw
+        // NPE out of StorageService.loadFiefs() for any non-empty fiefs.json.
         flags = new FiefFlags(logger);
+        this.load(fiefData);
     }
 
     public String getName() {

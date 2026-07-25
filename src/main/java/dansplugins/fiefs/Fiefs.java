@@ -34,12 +34,28 @@ public final class Fiefs extends PonderBukkitPlugin {
 
     private final CommandService commandService = new CommandService((PonderMC) getPonder());
     private final Logger logger = new Logger(this);
-    private final MedievalFactionsIntegrator medievalFactionsIntegrator = new MedievalFactionsIntegrator(logger);
+    // configService MUST be initialized before medievalFactionsIntegrator. Field initializers run in
+    // declaration order, and the integrator's constructor logs -> Logger.log -> Fiefs.isDebugEnabled()
+    // -> configService.getBoolean(...). With the old ordering that dereferenced a null configService
+    // and threw out of the plugin constructor.
     private final ConfigService configService = new ConfigService(this);
+    private final MedievalFactionsIntegrator medievalFactionsIntegrator = new MedievalFactionsIntegrator(logger);
     private final PersistentData persistentData = new PersistentData(medievalFactionsIntegrator);
     private final StorageService storageService = new StorageService(configService, this, persistentData, logger, medievalFactionsIntegrator);
     private final Scheduler scheduler = new Scheduler(logger, this, storageService);
     private final ChunkService chunkService = new ChunkService(persistentData, medievalFactionsIntegrator);
+
+    /**
+     * Whether {@link StorageService#load()} completed, i.e. whether {@link #persistentData} actually
+     * reflects what is on disk.
+     *
+     * <p>Load-bearing for data safety. Bukkit marks a plugin enabled <em>before</em> invoking
+     * {@code onEnable} and does not un-mark it if that throws, so {@code onDisable} still runs at
+     * shutdown. Without this flag, any failed or short-circuited enable — a missing Medieval Factions,
+     * a corrupt save file, anything — would reach {@code onDisable}, save empty in-memory state, and
+     * overwrite fiefs.json and claimedChunks.json with {@code []}.
+     */
+    private boolean loaded = false;
 
     /**
      * This runs when the server starts.
@@ -54,6 +70,7 @@ public final class Fiefs extends PonderBukkitPlugin {
         }
 
         storageService.load();
+        loaded = true;
         registerEventHandlers();
         initializeCommandService();
         scheduler.scheduleAutosave();
@@ -65,7 +82,10 @@ public final class Fiefs extends PonderBukkitPlugin {
      */
     @Override
     public void onDisable() {
-        storageService.save();
+        // Never save state we never loaded — that writes [] over the real save files. See #loaded.
+        if (loaded) {
+            storageService.save();
+        }
     }
 
     /**
