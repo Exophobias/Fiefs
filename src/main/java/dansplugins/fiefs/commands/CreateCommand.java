@@ -1,6 +1,6 @@
 package dansplugins.fiefs.commands;
 
-import com.dansplugins.factionsystem.faction.MfFaction;
+import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
@@ -42,7 +42,7 @@ public class CreateCommand extends FiefsCommand {
 
         Player player = (Player) sender;
 
-        MfFaction faction = medievalFactionsIntegrator.getFactionForPlayer(player);
+        FactionView faction = medievalFactionsIntegrator.getFactionForPlayer(player);
         if (faction == null) {
             return false;
         }
@@ -67,7 +67,7 @@ public class CreateCommand extends FiefsCommand {
             return false;
         }
 
-        Fief fief = new Fief(medievalFactionsIntegrator, name, player.getUniqueId(), faction.getId(), logger);
+        Fief fief = new Fief(medievalFactionsIntegrator, name, player.getUniqueId(), faction.getId().getValue(), logger);
         persistentData.addFief(fief);
         player.sendMessage(ChatColor.GREEN + "Fief created.");
         return true;

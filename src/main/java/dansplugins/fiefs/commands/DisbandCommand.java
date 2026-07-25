@@ -1,6 +1,6 @@
 package dansplugins.fiefs.commands;
 
-import com.dansplugins.factionsystem.faction.MfFaction;
+import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
@@ -32,7 +32,7 @@ public class DisbandCommand extends FiefsCommand {
 
         Player player = (Player) sender;
 
-        MfFaction faction = medievalFactionsIntegrator.getFactionForPlayer(player);
+        FactionView faction = medievalFactionsIntegrator.getFactionForPlayer(player);
         if (faction == null) {
             return false;
         }

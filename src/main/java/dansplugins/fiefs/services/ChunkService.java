@@ -1,8 +1,7 @@
 package dansplugins.fiefs.services;
 
-import com.dansplugins.factionsystem.claim.MfClaimedChunk;
-import com.dansplugins.factionsystem.faction.MfFaction;
-import com.dansplugins.factionsystem.player.MfPlayer;
+import com.dansplugins.factionsystem.api.ClaimView;
+import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
@@ -25,7 +24,7 @@ public class ChunkService {
 
     public ClaimedChunk getClaimedChunk(Chunk chunk) {
         for (ClaimedChunk claimedChunk : persistentData.getClaimedChunks()) {
-            if (areChunksEqual(claimedChunk.getChunk(), chunk)) {
+            if (claimedChunk.isAt(chunk)) {
                 return claimedChunk;
             }
         }
@@ -33,21 +32,15 @@ public class ChunkService {
     }
 
     public boolean attemptToClaimChunk(Chunk chunk, Fief fief, Player player) {
-        MfClaimedChunk mfClaim = medievalFactionsIntegrator.getAPI().getServices().getClaimService().getClaim(chunk);
-        
+        ClaimView mfClaim = medievalFactionsIntegrator.getAPI().getClaimAt(chunk);
+
         if (mfClaim == null) {
             player.sendMessage(ChatColor.RED + "You can't claim land that your faction hasn't claimed.");
             return false;
         }
-        
+
         // Verify the MF claim belongs to the player's faction
-        MfPlayer mfPlayer = medievalFactionsIntegrator.getAPI().getServices().getPlayerService().getPlayerByBukkitPlayer(player);
-        if (mfPlayer == null) {
-            player.sendMessage(ChatColor.RED + "Could not load your player data.");
-            return false;
-        }
-        
-        MfFaction playerFaction = medievalFactionsIntegrator.getAPI().getServices().getFactionService().getFactionByPlayerId(mfPlayer.getId());
+        FactionView playerFaction = medievalFactionsIntegrator.getAPI().getFactionByPlayer(player.getUniqueId());
         if (playerFaction == null || !mfClaim.getFactionId().equals(playerFaction.getId())) {
             player.sendMessage(ChatColor.RED + "You can't claim land that your faction hasn't claimed.");
             return false;
@@ -88,9 +81,5 @@ public class ChunkService {
         persistentData.removeChunk(claimedChunk);
         player.sendMessage(ChatColor.GREEN + "Unclaimed.");
         return true;
-    }
-
-    private boolean areChunksEqual(Chunk chunk1, Chunk chunk2) {
-        return (chunk1.getX() == chunk2.getX() && chunk1.getZ() == chunk2.getZ() && chunk1.getWorld().getName().equals(chunk2.getWorld().getName()));
     }
 }

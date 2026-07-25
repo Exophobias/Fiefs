@@ -1,7 +1,8 @@
 package dansplugins.fiefs.listeners;
 
-import com.dansplugins.factionsystem.MedievalFactions;
-import com.dansplugins.factionsystem.event.faction.*;
+import com.dansplugins.factionsystem.api.event.FactionDisbandedEvent;
+import com.dansplugins.factionsystem.api.event.FactionMemberLeftEvent;
+import com.dansplugins.factionsystem.api.event.FactionUnclaimedChunkEvent;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
@@ -14,75 +15,68 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 /**
+ * Keeps fief state consistent with the faction state underneath it.
+ *
+ * <p>Listens to Medieval Factions' <b>stable API</b> events, not its internal ones. Besides the
+ * decoupling, that buys thread safety for free: the API bridges re-fire on the next server tick, so
+ * these handlers always run on the main thread. MF's internal events do not — {@code /f leave},
+ * {@code /f disband}, {@code /f unclaim} and {@code /f kick} all dispatch asynchronously, and these
+ * handlers mutate the very lists that {@code ChunkService} iterates from {@code PlayerMoveEvent} and
+ * from nine {@code InteractionListener} handlers. Binding to the internal events was a live data race.
+ *
  * @author Daniel McCoy Stephenson
  */
 public class FactionEventListener implements Listener {
     private final PersistentData persistentData;
-    private final MedievalFactions medievalFactions;
 
-    public FactionEventListener(PersistentData persistentData, MedievalFactions medievalFactions) {
+    public FactionEventListener(PersistentData persistentData) {
         this.persistentData = persistentData;
-        this.medievalFactions = medievalFactions;
     }
 
-    // Note: faction renames need no handling — fiefs store the faction id, which is stable across renames.
+    // Faction renames need no handling: fiefs store the faction id, which is stable across renames.
 
-    @EventHandler()
-    public void handle(FactionUnclaimEvent event) {
-        World world = Bukkit.getWorld(event.getClaim().getWorldId());
+    @EventHandler
+    public void handle(FactionUnclaimedChunkEvent event) {
+        World world = Bukkit.getWorld(event.getWorldId());
         if (world == null) {
-            // World not loaded or unknown, cannot process unclaim
+            // The world is not loaded, so no fief claim in it can be matched by name.
             return;
         }
-        
-        String worldName = world.getName();
-        int chunkX = event.getClaim().getX();
-        int chunkZ = event.getClaim().getZ();
-        
-        // Remove claim by matching world name and coordinates without loading the chunk
+
         ClaimedChunk toRemove = null;
         for (ClaimedChunk claimedChunk : persistentData.getClaimedChunks()) {
-            String claimWorld = claimedChunk.getWorld();
-            if (claimWorld != null && claimWorld.equals(worldName)) {
-                // Guard against stale ClaimedChunk entries where the underlying chunk is null
-                if (claimedChunk.getChunk() == null) {
-                    continue;
-                }
-                double[] coords = claimedChunk.getCoordinates();
-                int claimX = (int)coords[0];
-                int claimZ = (int)coords[1];
-                if (claimX == chunkX && claimZ == chunkZ) {
-                    toRemove = claimedChunk;
-                    break;
-                }
+            if (claimedChunk.isAt(world.getName(), event.getChunkX(), event.getChunkZ())) {
+                toRemove = claimedChunk;
+                break;
             }
         }
-        
+
         if (toRemove != null) {
             persistentData.removeChunk(toRemove);
         }
     }
 
-    @EventHandler()
-    public void handle(FactionLeaveEvent event) {
-        try {
-            UUID playerUUID = UUID.fromString(event.getPlayerId());
-            Fief fief = persistentData.getFief(playerUUID);
-            if (fief != null) {
-                fief.removeMember(playerUUID);
+    /**
+     * Covers voluntary leaves and kicks alike — the API deliberately emits one event per departure,
+     * where MF internally fires both a kick event and a leave event for a single kick.
+     */
+    @EventHandler
+    public void handle(FactionMemberLeftEvent event) {
+        UUID playerId = event.getPlayerId();
+        Fief fief = persistentData.getFief(playerId);
+        if (fief != null) {
+            fief.removeMember(playerId);
 
-                // TODO: inform fief members that the player left the faction
-            }
-        } catch (IllegalArgumentException e) {
-            medievalFactions.getLogger().warning("Invalid player UUID format in FactionLeaveEvent: " + event.getPlayerId());
+            // TODO: inform fief members that the player left the faction
         }
     }
 
-    @EventHandler()
-    public void handle(FactionDisbandEvent event) {
+    @EventHandler
+    public void handle(FactionDisbandedEvent event) {
+        String factionId = event.getFaction().getValue();
         ArrayList<Fief> toRemove = new ArrayList<>();
         for (Fief fief : persistentData.getFiefs()) {
-            if (fief.getFactionId().equals(event.getFactionId())) {
+            if (fief.getFactionId().equals(factionId)) {
                 toRemove.add(fief);
             }
         }
@@ -90,21 +84,6 @@ public class FactionEventListener implements Listener {
             // TODO: inform fief members that the faction has been disbanded
 
             persistentData.removeFief(fief);
-        }
-    }
-
-    @EventHandler()
-    public void handle(FactionKickEvent event) {
-        try {
-            UUID playerUUID = UUID.fromString(event.getPlayerId());
-            Fief fief = persistentData.getFief(playerUUID);
-            if (fief != null) {
-                fief.removeMember(playerUUID);
-            }
-
-            // TODO: inform fief members that the player was kicked from the faction
-        } catch (IllegalArgumentException e) {
-            medievalFactions.getLogger().warning("Invalid player UUID format in FactionKickEvent: " + event.getPlayerId());
         }
     }
 }

@@ -63,8 +63,10 @@ public final class Fiefs extends JavaPlugin {
     public void onEnable() {
         initializeConfig();
 
-        if (!medievalFactionsIntegrator.isMedievalFactionsAPIAvailable()) {
-            logger.log("Fiefs cannot enable.");
+        // Resolved HERE, not in a field initializer: MF registers its API with the ServicesManager in
+        // its own onEnable, and Bukkit constructs all plugins before enabling any of them.
+        if (!medievalFactionsIntegrator.resolve()) {
+            getLogger().severe("Medieval Factions was not found. Fiefs cannot enable.");
             return;
         }
 
@@ -166,7 +168,7 @@ public final class Fiefs extends JavaPlugin {
         ArrayList<Listener> listeners = new ArrayList<>(Arrays.asList(
                 new MoveListener(configService, chunkService, medievalFactionsIntegrator),
                 new InteractionListener(chunkService, persistentData, logger, this),
-                new FactionEventListener(persistentData, medievalFactionsIntegrator.getAPI())
+                new FactionEventListener(persistentData)
         ));
         PluginManager pluginManager = getServer().getPluginManager();
         listeners.forEach(listener -> pluginManager.registerEvents(listener, this));

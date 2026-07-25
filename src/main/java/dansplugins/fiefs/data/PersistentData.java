@@ -1,6 +1,7 @@
 package dansplugins.fiefs.data;
 
-import com.dansplugins.factionsystem.faction.MfFaction;
+import com.dansplugins.factionsystem.api.FactionId;
+import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
@@ -55,8 +56,8 @@ public class PersistentData {
         return null;
     }
 
-    public ArrayList<Fief> getFiefsOfFaction(MfFaction faction) {
-        return getFiefsOfFaction(faction.getId());
+    public ArrayList<Fief> getFiefsOfFaction(FactionView faction) {
+        return getFiefsOfFaction(faction.getId().getValue());
     }
 
     public ArrayList<Fief> getFiefsOfFaction(String factionId) {
@@ -69,9 +70,11 @@ public class PersistentData {
         return toReturn;
     }
 
-    // Fiefs store the faction id; resolve it to the current faction name for display.
+    // Fiefs store the faction id; resolve it to the current faction name for display. Note the
+    // FactionId wrapper: getFactionByName(String) also exists, and passing a raw id to it would
+    // compile cleanly and then return null for every real faction.
     public String getFactionNameOfFief(Fief fief) {
-        MfFaction faction = medievalFactionsIntegrator.getAPI().getServices().getFactionService().getFactionByFactionId(fief.getFactionId());
+        FactionView faction = medievalFactionsIntegrator.getAPI().getFaction(new FactionId(fief.getFactionId()));
         return faction != null ? faction.getName() : "Unknown";
     }
 
@@ -101,14 +104,7 @@ public class PersistentData {
 
     public void sendListOfFiefsToPlayer(Player player) {
 
-        com.dansplugins.factionsystem.player.MfPlayer mfPlayer = 
-            medievalFactionsIntegrator.getAPI().getServices().getPlayerService().getPlayerByBukkitPlayer(player);
-        if (mfPlayer == null) {
-            player.sendMessage(ChatColor.RED + "Could not load your player data.");
-            return;
-        }
-
-        MfFaction faction = medievalFactionsIntegrator.getAPI().getServices().getFactionService().getFactionByPlayerId(mfPlayer.getId());
+        FactionView faction = medievalFactionsIntegrator.getAPI().getFactionByPlayer(player.getUniqueId());
 
         if (faction == null) {
             player.sendMessage(ChatColor.RED + "You are not in a faction.");

@@ -114,13 +114,14 @@ public class Fief {
         return invitedPlayers.contains(playerUUID);
     }
 
+    /**
+     * The fief's land allowance: the sum of its members' Medieval Factions power. Unknown players
+     * contribute 0, which the API guarantees, so no null handling is needed here.
+     */
     public int getCumulativePowerLevel() {
         double cumulativePowerLevel = 0.0;
         for (UUID memberUUID : members) {
-            com.dansplugins.factionsystem.player.MfPlayer mfPlayer =
-                medievalFactionsIntegrator.getAPI().getServices().getPlayerService().getPlayerByPlayerId(memberUUID.toString());
-            double memberPowerLevel = mfPlayer != null ? mfPlayer.getPower() : 0.0;
-            cumulativePowerLevel += memberPowerLevel;
+            cumulativePowerLevel += medievalFactionsIntegrator.getAPI().getPower(memberUUID);
         }
         return (int) Math.round(cumulativePowerLevel);
     }

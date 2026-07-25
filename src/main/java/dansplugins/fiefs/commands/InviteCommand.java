@@ -1,7 +1,6 @@
 package dansplugins.fiefs.commands;
 
-import com.dansplugins.factionsystem.faction.MfFaction;
-import com.dansplugins.factionsystem.player.MfPlayer;
+import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
@@ -42,7 +41,7 @@ public class InviteCommand extends FiefsCommand {
 
         Player player = (Player) sender;
 
-        MfFaction playersFaction = medievalFactionsIntegrator.getFactionForPlayer(player);
+        FactionView playersFaction = medievalFactionsIntegrator.getFactionForPlayer(player);
         if (playersFaction == null) {
             return false;
         }
@@ -78,14 +77,9 @@ public class InviteCommand extends FiefsCommand {
             return false;
         }
 
-        MfPlayer targetMfPlayer = medievalFactionsIntegrator.getAPI().getServices().getPlayerService().getPlayerByPlayerId(targetUUID.toString());
-        if (targetMfPlayer == null) {
-            player.sendMessage(ChatColor.RED + "Could not load that player's data.");
-            return false;
-        }
-
-        MfFaction targetsFaction = medievalFactionsIntegrator.getAPI().getServices().getFactionService().getFactionByPlayerId(targetMfPlayer.getId());
-        if (targetsFaction == null || !targetsFaction.getName().equalsIgnoreCase(playersFaction.getName())) {
+        FactionView targetsFaction = medievalFactionsIntegrator.getAPI().getFactionByPlayer(targetUUID);
+        // Compared by id, not by name: faction names are mutable and not guaranteed unique.
+        if (targetsFaction == null || !targetsFaction.getId().equals(playersFaction.getId())) {
             player.sendMessage(ChatColor.RED + "'" + targetName + "' is not in your faction.");
             return false;
         }
