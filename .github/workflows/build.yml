@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches: ['**']
   pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,24 +14,113 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      # Fiefs compiles against the stable API in our Medieval-Factions fork
+      # (com.dansplugins.factionsystem.api), which is published to no public repository:
+      # repo.dansplugins.com stops at 5.7.2, which predates the API entirely. Rather than commit a
+      # 12 MB jar, build the fork from source and install it into the local Maven repository.
+      #
+      # Worth the few minutes: Fiefs is then always compiled against the CURRENT fork, so an API
+      # change breaks the build here rather than the live server.
+      #
+      # Checked out to an untracked path so it stays out of the conflict-marker scan below.
+      - name: Check out the Medieval-Factions fork
+        uses: actions/checkout@v7
+        with:
+          repository: Exophobias/Medieval-Factions
+          ref: patriam/target-26.1.2
+          path: .mf-src
+
+      # Medieval-Factions pins Gradle 7.6.4, which cannot run on JDK 21+. Its output is Java 17
+      # bytecode, which runs fine on a Java 25 server and compiles fine against Java 25 here.
+      # Installed before the JDK 25 step only so JAVA_HOME_17_X64 exists for the publish step;
+      # JAVA_HOME itself stays on 25 for the Maven build.
+      - name: Set up JDK 17 (to build Medieval-Factions)
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
-          distribution: 'temurin'
-          # Generates ~/.m2/settings.xml with a server whose id matches the
-          # `dansplugins` repository in pom.xml, reading credentials from the
-          # env vars below (set from repository secrets).
-          server-id: dansplugins
-          server-username: MAVEN_USERNAME
-          server-password: MAVEN_PASSWORD
+          distribution: temurin
 
-      - name: Build with Maven
-        run: mvn clean package
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          # Java 25 is the hard minimum for Minecraft 26.1+, and paper-api ships class-file
+          # major 69, so it is also the floor for compiling against it. JDK 17 and 21 both reject
+          # paper-api outright ("wrong version 69.0, should be 61.0").
+          java-version: '25'
+          distribution: temurin
+
+      # Cached explicitly rather than via setup-java's `cache: maven`, matching PatriamMFAddon,
+      # where that option silently stopped caching on v5.
+      #
+      # com/dansplugins is excluded on purpose: the fork is republished from source on every run,
+      # so caching it could only ever serve a stale jar.
+      - name: Cache the Maven repository
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.m2/repository
+            !~/.m2/repository/com/dansplugins
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: maven-${{ runner.os }}-
+
+      # ORDER IS LOAD-BEARING: must come after the cache restore. Restoring untars over ~/.m2, so
+      # publishing first would let a stale cached jar overwrite the fresh fork, and the build would
+      # compile against an old API while the publish step still reported success.
+      - name: Install the Medieval-Factions fork to the local Maven repository
+        working-directory: .mf-src
         env:
-          # Add these as repository secrets (Settings -> Secrets and variables
-          # -> Actions), using the `fiefs-ci` account on repo.dansplugins.com.
-          MAVEN_USERNAME: ${{ secrets.DANSPLUGINS_REPO_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.DANSPLUGINS_REPO_PASSWORD }}
+          # This step alone runs on 17; JAVA_HOME stays on 25 everywhere else.
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon publishToMavenLocal
+
+      # Cheap, and it fails before Maven starts. Nothing parses plugin.yml at build time -- `mvn
+      # package` copies it into the jar verbatim -- so a conflict marker in it ships silently.
+      - name: Reject git conflict markers
+        run: |
+          if git grep -nE '^(<{7}|={7}|>{7})(\s|$)' -- . ':(exclude).github/workflows/build.yml'; then
+            echo "::error::Git conflict markers found in tracked files (see above)."
+            exit 1
+          fi
+          echo "No conflict markers."
+
+      - name: Build
+        run: mvn -B --no-transfer-progress verify
+
+      - name: Verify the jar declares a main class that exists inside it
+        run: |
+          jar=target/Fiefs.jar
+          main=$(unzip -p "$jar" plugin.yml | sed -n 's/^main:[[:space:]]*//p')
+          echo "Declared main: $main"
+          case "$main" in
+            *'${'*) echo "::error::main is an unresolved Maven expression: $main"; exit 1 ;;
+            '')     echo "::error::plugin.yml declares no main class"; exit 1 ;;
+          esac
+          path="$(echo "$main" | tr '.' '/').class"
+          if ! unzip -l "$jar" | grep -qF "$path"; then
+            echo "::error::plugin.yml declares main: $main but $path is not in the jar."
+            exit 1
+          fi
+          echo "OK: $path is present in the jar."
+
+      # The whole point of dropping Ponder was that 71% of the old jar was unrelocated JUnit and
+      # Hamcrest. Every dependency is `provided`, so anything outside dansplugins/ means some
+      # dependency regained a bundling scope.
+      - name: Verify the jar bundles no third-party classes
+        run: |
+          stray=$(unzip -l target/Fiefs.jar | awk '{print $4}' \
+            | grep -vE '^(dansplugins/|META-INF/|plugin\.yml|)$' || true)
+          if [ -n "$stray" ]; then
+            echo "::error::Unexpected non-Fiefs entries in the jar:"; echo "$stray"; exit 1
+          fi
+          echo "Jar contains only Fiefs classes."
+
+      - name: Upload plugin jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: Fiefs
+          path: target/Fiefs.jar
+          if-no-files-found: error
