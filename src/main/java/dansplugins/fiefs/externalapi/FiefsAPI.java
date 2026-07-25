@@ -18,15 +18,24 @@ public class FiefsAPI {
     }
 
     public FI_Fief getFief(String fiefName) {
-        return new FI_Fief(persistentData.getFief(fiefName));
+        // Null in, null out. Wrapping a null Fief handed callers a non-null FI_Fief around nothing,
+        // so their own != null check could not detect "no such fief".
+        Fief fief = persistentData.getFief(fiefName);
+        return fief == null ? null : new FI_Fief(fief);
     }
 
     public FI_Fief getFief(Player player) {
-        return new FI_Fief(persistentData.getFief(player));
+        // Null in, null out. Wrapping a null Fief handed callers a non-null FI_Fief around nothing,
+        // so their own != null check could not detect "no such fief".
+        Fief fief = persistentData.getFief(player);
+        return fief == null ? null : new FI_Fief(fief);
     }
 
     public FI_Fief getFief(UUID playerUUID) {
-        return new FI_Fief(persistentData.getFief(playerUUID));
+        // Null in, null out. Wrapping a null Fief handed callers a non-null FI_Fief around nothing,
+        // so their own != null check could not detect "no such fief".
+        Fief fief = persistentData.getFief(playerUUID);
+        return fief == null ? null : new FI_Fief(fief);
     }
 
     public ArrayList<FI_Fief> getFiefsOfFaction(String factionId) {

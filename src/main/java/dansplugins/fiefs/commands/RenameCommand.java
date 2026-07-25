@@ -3,6 +3,7 @@ package dansplugins.fiefs.commands;
 import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
+import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
@@ -69,6 +70,18 @@ public class RenameCommand extends FiefsCommand {
         if (persistentData.isNameTaken(newName)) {
             player.sendMessage(ChatColor.RED + "That name is taken.");
             return false;
+        }
+
+        // Claims are keyed by the fief's display name, so they must be re-pointed in the same
+        // breath. Without this the fief orphans all its land: its demesne count resets to zero (so it
+        // can claim its whole allowance again on top of land it already holds), it can no longer
+        // unclaim its own chunks, disbanding stops cleaning them up, and territory alerts announce
+        // the old name.
+        String oldName = playersFief.getName();
+        for (ClaimedChunk claimedChunk : persistentData.getClaimedChunks()) {
+            if (claimedChunk.getFief().equalsIgnoreCase(oldName)) {
+                claimedChunk.setFief(newName);
+            }
         }
 
         playersFief.setName(newName);

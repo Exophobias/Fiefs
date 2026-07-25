@@ -1,6 +1,5 @@
 package dansplugins.fiefs;
 
-import dansplugins.fiefs.bstats.Metrics;
 import dansplugins.fiefs.commands.*;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.externalapi.FiefsAPI;
@@ -75,7 +74,6 @@ public final class Fiefs extends JavaPlugin {
         registerEventHandlers();
         initializeCommandService();
         scheduler.scheduleAutosave();
-        handlebStatsIntegration();
     }
 
     /**
@@ -154,11 +152,6 @@ public final class Fiefs extends JavaPlugin {
             }
             reloadConfig();
         }
-    }
-
-    private void handlebStatsIntegration() {
-        int pluginId = 12743;
-        new Metrics(this, pluginId);
     }
 
     /**

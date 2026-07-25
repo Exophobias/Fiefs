@@ -14,6 +14,11 @@ import dansplugins.fiefs.utils.Logger;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -76,17 +81,33 @@ public class StorageService {
         writeOutFiles(claimedChunks, CLAIMED_CHUNKS_FILE_NAME);
     }
 
+    /**
+     * Writes to a temporary file and then atomically moves it over the target.
+     *
+     * <p>The previous implementation opened the real file with {@code new FileOutputStream(file)},
+     * which truncates it immediately. A crash, a full disk, or a serialization error between the
+     * truncate and the write therefore left a half-written or empty save file — losing every fief.
+     * Writing elsewhere and moving means the real file is only ever replaced by a file that is already
+     * complete on disk.
+     */
     private void writeOutFiles(List<Map<String, String>> saveData, String fileName) {
+        Path target = Paths.get(FILE_PATH, fileName);
+        Path temp = Paths.get(FILE_PATH, fileName + ".tmp");
         try {
-            File parentFolder = new File(FILE_PATH);
-            parentFolder.mkdir();
-            File file = new File(FILE_PATH + fileName);
-            file.createNewFile();
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8);
-            outputStreamWriter.write(gson.toJson(saveData));
-            outputStreamWriter.close();
-        } catch(IOException e) {
-            System.out.println("ERROR: " + e.toString());
+            Files.createDirectories(target.getParent());
+            try (Writer writer = new OutputStreamWriter(Files.newOutputStream(temp), StandardCharsets.UTF_8)) {
+                writer.write(gson.toJson(saveData));
+            }
+            try {
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                // Some filesystems (notably across volumes) cannot do this atomically. A plain replace
+                // is still strictly better than truncate-then-write.
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            logger.log("Failed to save " + fileName + ": " + e);
+            System.out.println("[Fiefs] ERROR: failed to save " + fileName + ": " + e);
         }
     }
 
@@ -112,14 +133,34 @@ public class StorageService {
         }
     }
 
+    /**
+     * Reads one save file. Returns an empty list when the file simply does not exist yet, and
+     * <b>fails loudly</b> when it exists but cannot be read.
+     *
+     * <p>That asymmetry is deliberate and is the safe choice. Recovering from a corrupt save by
+     * starting empty would let {@code Fiefs#loaded} be set, and the next shutdown would then write
+     * {@code []} over the very file that still held the data — turning a recoverable parse error into
+     * permanent loss. Throwing aborts {@code onEnable}, leaves {@code loaded} false, and guarantees
+     * the existing file is left untouched for manual recovery.
+     *
+     * <p>Two further defects fixed here: the reader was never closed (on Windows an open handle blocks
+     * the atomic replace in {@link #writeOutFiles}), and Gson returns {@code null} for an empty file,
+     * which used to NPE in the caller.
+     */
     private ArrayList<HashMap<String, String>> loadDataFromFilename(String filename) {
-        try{
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();;
-            JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(filename), StandardCharsets.UTF_8));
-            return gson.fromJson(reader, LIST_MAP_TYPE);
-        } catch (FileNotFoundException e) {
-            // Fail silently because this can actually happen in normal use
+        File file = new File(filename);
+        if (!file.exists()) {
+            // Normal on first run.
+            return new ArrayList<>();
         }
-        return new ArrayList<>();
+        try (JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+            ArrayList<HashMap<String, String>> data = gson.fromJson(reader, LIST_MAP_TYPE);
+            return data != null ? data : new ArrayList<>();
+        } catch (Exception e) {
+            logger.log("Failed to read " + filename + ": " + e);
+            throw new IllegalStateException(
+                    "Fiefs could not read " + filename + ". Refusing to enable so the file is not "
+                            + "overwritten with empty data. Fix or remove the file, then restart.", e);
+        }
     }
 }

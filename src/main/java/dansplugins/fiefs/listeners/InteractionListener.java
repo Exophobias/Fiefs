@@ -208,6 +208,16 @@ public class InteractionListener implements Listener {
         Fief chunkHolder = persistentData.getFief(claimedChunk.getFief());
         Fief playersFief = persistentData.getFief(player);
 
+        if (chunkHolder == null) {
+            // A claim naming a fief that no longer exists. Deny and report rather than allowing:
+            // returning false here would silently open the protection bypass this method exists to
+            // close. Should be unreachable now that /fi rename re-points claims and disbanding
+            // unclaims them, so log it as a real inconsistency if it ever fires.
+            logger.log("Claim at " + claimedChunk.getWorld() + " " + claimedChunk.getX() + ","
+                    + claimedChunk.getZ() + " names unknown fief '" + claimedChunk.getFief() + "'.");
+            return true;
+        }
+
         if (playersFief == null) {
             return true;
         }

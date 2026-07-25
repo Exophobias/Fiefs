@@ -84,7 +84,7 @@ public class InviteCommand extends FiefsCommand {
             return false;
         }
 
-        Fief targetsFief = persistentData.getFief(targetName);
+        Fief targetsFief = persistentData.getFief(targetUUID);
         if (targetsFief != null) {
             player.sendMessage(ChatColor.RED + "That player is already in " + targetsFief.getName());
             return false;

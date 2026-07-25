@@ -79,8 +79,9 @@ public class KickCommand extends FiefsCommand {
             return false;
         }
 
-        Fief targetsFief = persistentData.getFief(targetName);
-        if (targetsFief == null || !targetsFief.getName().equalsIgnoreCase(playersFief.getName())) {
+        // getFief(String) matches FIEF names, so passing a player name here never matched and this
+        // command failed every time. The membership test is what was actually meant.
+        if (!playersFief.isMember(targetUUID)) {
             player.sendMessage(ChatColor.RED + "That player is not in your fief.");
             return false;
         }
