@@ -1,7 +1,8 @@
 name: Fiefs
 version: '${project.version}'
 main: dansplugins.fiefs.Fiefs
-api-version: 1.13
+# A FLOOR, not a pin: one jar built against 26.1.2 loads on 26.1.x and 26.2 alike.
+api-version: '26.1'
 author: DanTheTechMan
 depend: [MedievalFactions]
 
@@ -10,6 +11,10 @@ commands:
   fi:
 
 permissions:
+  # Bare /fi (the credits banner). Declared explicitly because an undeclared permission falls through
+  # to Bukkit's DEFAULT_PERMISSION, which is OP -- silently making /fi op-only.
+  fiefs.default:
+    default: true
   fiefs.help:
     default: true
   fiefs.list:

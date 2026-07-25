@@ -6,7 +6,7 @@ import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import preponderous.ponder.minecraft.bukkit.abs.AbstractPluginCommand;
+import dansplugins.fiefs.commands.abs.FiefsCommand;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +14,7 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public class ListCommand extends AbstractPluginCommand {
+public class ListCommand extends FiefsCommand {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
     private final PersistentData persistentData;
 

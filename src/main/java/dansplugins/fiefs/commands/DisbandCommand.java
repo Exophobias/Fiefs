@@ -7,7 +7,7 @@ import dansplugins.fiefs.objects.Fief;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import preponderous.ponder.minecraft.bukkit.abs.AbstractPluginCommand;
+import dansplugins.fiefs.commands.abs.FiefsCommand;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,7 +15,7 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public class DisbandCommand extends AbstractPluginCommand {
+public class DisbandCommand extends FiefsCommand {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
     private final PersistentData persistentData;
 

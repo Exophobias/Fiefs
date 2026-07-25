@@ -3,7 +3,7 @@ package dansplugins.fiefs.commands;
 import dansplugins.fiefs.Fiefs;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-import preponderous.ponder.minecraft.bukkit.abs.AbstractPluginCommand;
+import dansplugins.fiefs.commands.abs.FiefsCommand;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,7 +11,7 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public class DefaultCommand extends AbstractPluginCommand {
+public class DefaultCommand extends FiefsCommand {
     private final Fiefs fiefs;
 
     public DefaultCommand(Fiefs fiefs) {

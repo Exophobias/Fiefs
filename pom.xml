@@ -6,65 +6,50 @@
 
     <groupId>dansplugins</groupId>
     <artifactId>Fiefs</artifactId>
+    <!-- Deliberately unchanged. Renaming the artifact would move the plugin's data directory
+         (plugins/Fiefs/) and break anything declaring depend: [Fiefs]; the Medieval-Factions fork
+         set the same precedent by keeping com.dansplugins / 5.9.0-SNAPSHOT. -->
     <version>0.11.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Fiefs</name>
+    <description>Sub-factions (fiefs) within Medieval Factions.</description>
 
     <properties>
-        <java.version>1.8</java.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+        <!-- Build target. api-version in plugin.yml is a FLOOR, not a pin, so one jar built here
+             loads on 26.1.x and 26.2 alike. -->
+        <minecraft.version>26.1.2</minecraft.version>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.4</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-            </resource>
-        </resources>
-    </build>
+        <!-- Pinned to the Paper-Version in mockbukkit-v26.1.2's jar manifest rather than the newest
+             build, so that if a MockBukkit test tier is ever added, the API the tests mock is the API
+             the code compiled against. Bump both together. -->
+        <paper.version>26.1.2.build.72-stable</paper.version>
+
+        <!-- Java 25 is the hard server minimum for Minecraft 26.1+, and paper-api ships class-file
+             major 69, so 25 is also the floor for compiling against it. -->
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Our Medieval-Factions fork, which carries the stable in-JVM API this plugin binds to
+             (com.dansplugins.factionsystem.api.*). It is NOT on any public repository, so it must be
+             installed into the local Maven repository first:
+
+                 cd ../Medieval-Factions
+                 JAVA_HOME=<jdk-17> ./gradlew publishToMavenLocal
+
+             Build MF with JDK 17 (its Gradle 7.6.4 cannot run on JDK 25); the resulting Java 17
+             bytecode runs fine on the Java 25 server. -->
+        <medievalfactions.version>5.9.0-SNAPSHOT</medievalfactions.version>
+    </properties>
 
     <repositories>
         <repository>
-            <id>spigotmc-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-        <repository>
-            <id>sonatype</id>
-            <url>https://oss.sonatype.org/content/groups/public/</url>
-        </repository>
-        <repository>
-		    <id>jitpack.io</id>
-		    <url>https://jitpack.io</url>
-		</repository>
+
+        <!-- Kept so a future PUBLISHED Medieval-Factions release resolves without editing the pom.
+             The fork we currently build against comes from the local repository. -->
         <repository>
             <id>dansplugins</id>
             <url>https://repo.dansplugins.com/repository/maven-public/</url>
@@ -72,24 +57,73 @@
     </repositories>
 
     <dependencies>
+        <!-- paper-api rather than spigot-api: Patriam runs Paper, so this matches deployment, and it
+             is what MockBukkit builds against if a test tier is added later. -->
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.17.1-R0.1-SNAPSHOT</version>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>${paper.version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Medieval-Factions has no separate API module, so this is the full shaded jar even though
+             we only touch com.dansplugins.factionsystem.api.*. Provided scope: the real plugin
+             supplies these classes at runtime.
+
+             This plugin binds ONLY to the stable api package, never to MF's internal services or
+             models. That is not stylistic. Fiefs was written against MF4's internal API, MF5's
+             Kotlin rewrite deleted it, and Fiefs stayed broken from 2022 until 2026. -->
         <dependency>
             <groupId>com.dansplugins</groupId>
             <artifactId>medieval-factions</artifactId>
-            <version>5.7.2</version>
+            <version>${medievalfactions.version}</version>
             <classifier>all</classifier>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>com.github.Preponderous-Software</groupId>
-            <artifactId>ponder</artifactId>
-            <version>1.1</version>
-            <scope>compile</scope>
-        </dependency>
     </dependencies>
+
+    <!-- Gson is deliberately NOT declared. Paper ships it on the server classpath and paper-api
+         brings it in transitively at provided scope, so declaring or shading it would only risk
+         loading a second copy at runtime. -->
+
+    <build>
+        <finalName>${project.name}</finalName>
+
+        <resources>
+            <!-- Filter ONLY plugin.yml. Filtering the whole resources directory means any stray ${...}
+                 in a future data file is silently substituted at package time. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>plugin.yml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>plugin.yml</exclude>
+                </excludes>
+            </resource>
+        </resources>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                    <compilerArgs>
+                        <arg>-Xlint:all,-processing</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+
+        <!-- maven-shade-plugin is gone along with the Ponder dependency it existed to bundle. Every
+             remaining dependency is `provided`, so the jar contains this plugin's classes and nothing
+             else. -->
+    </build>
 </project>

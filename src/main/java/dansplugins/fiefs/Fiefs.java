@@ -8,7 +8,9 @@ import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.listeners.FactionEventListener;
 import dansplugins.fiefs.listeners.InteractionListener;
 import dansplugins.fiefs.listeners.MoveListener;
+import dansplugins.fiefs.commands.abs.FiefsCommand;
 import dansplugins.fiefs.services.ChunkService;
+import dansplugins.fiefs.services.CommandService;
 import dansplugins.fiefs.services.ConfigService;
 import dansplugins.fiefs.services.StorageService;
 import dansplugins.fiefs.utils.Logger;
@@ -16,11 +18,8 @@ import dansplugins.fiefs.utils.Scheduler;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.event.Listener;
-import preponderous.ponder.minecraft.bukkit.PonderMC;
-import preponderous.ponder.minecraft.bukkit.abs.AbstractPluginCommand;
-import preponderous.ponder.minecraft.bukkit.abs.PonderBukkitPlugin;
-import preponderous.ponder.minecraft.bukkit.services.CommandService;
-import preponderous.ponder.minecraft.bukkit.tools.EventHandlerRegistry;
+import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -29,10 +28,10 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public final class Fiefs extends PonderBukkitPlugin {
-    private final String pluginVersion = "v" + getDescription().getVersion();
+public final class Fiefs extends JavaPlugin {
+    private final String pluginVersion = "v" + getPluginMeta().getVersion();
 
-    private final CommandService commandService = new CommandService((PonderMC) getPonder());
+    private final CommandService commandService = new CommandService();
     private final Logger logger = new Logger(this);
     // configService MUST be initialized before medievalFactionsIntegrator. Field initializers run in
     // declaration order, and the integrator's constructor logs -> Logger.log -> Fiefs.isDebugEnabled()
@@ -98,12 +97,15 @@ public final class Fiefs extends PonderBukkitPlugin {
      */
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        // Bare /fi is handled here rather than routed through the dispatcher, deliberately. Bukkit has
+        // already checked the sender against the `fiefs` command's own permission by this point, and
+        // going through the dispatcher would additionally demand fiefs.default.
         if (args.length == 0) {
             DefaultCommand defaultCommand = new DefaultCommand(this);
             return defaultCommand.execute(sender);
         }
 
-        return commandService.interpretAndExecuteCommand(sender, label, args);
+        return commandService.interpretAndExecuteCommand(sender, args);
     }
 
     /**
@@ -139,10 +141,6 @@ public final class Fiefs extends PonderBukkitPlugin {
         return new FiefsAPI(persistentData);
     }
 
-    public PonderMC getPonderMC() {
-        return (PonderMC) getPonder();
-    }
-
     private void initializeConfig() {
         if (!(new File("./plugins/Fiefs/config.yml").exists())) {
             configService.saveMissingConfigDefaultsIfNotPresent();
@@ -162,23 +160,23 @@ public final class Fiefs extends PonderBukkitPlugin {
     }
 
     /**
-     * Registers the event handlers of the plugin using Ponder.
+     * Registers the plugin's event handlers.
      */
     private void registerEventHandlers() {
-        EventHandlerRegistry eventHandlerRegistry = new EventHandlerRegistry();
         ArrayList<Listener> listeners = new ArrayList<>(Arrays.asList(
                 new MoveListener(configService, chunkService, medievalFactionsIntegrator),
                 new InteractionListener(chunkService, persistentData, logger, this),
                 new FactionEventListener(persistentData, medievalFactionsIntegrator.getAPI())
         ));
-        eventHandlerRegistry.registerEventHandlers(listeners, this);
+        PluginManager pluginManager = getServer().getPluginManager();
+        listeners.forEach(listener -> pluginManager.registerEvents(listener, this));
     }
 
     /**
-     * Initializes Ponder's command service with the plugin's commands.
+     * Initializes the command service with the plugin's subcommands.
      */
     private void initializeCommandService() {
-        ArrayList<AbstractPluginCommand> commands = new ArrayList<AbstractPluginCommand>(Arrays.asList(
+        ArrayList<FiefsCommand> commands = new ArrayList<FiefsCommand>(Arrays.asList(
                 new CheckClaimCommand(persistentData, chunkService),
                 new ClaimCommand(medievalFactionsIntegrator, persistentData, chunkService),
                 new ConfigCommand(configService),

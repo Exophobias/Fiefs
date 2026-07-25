@@ -2,7 +2,7 @@ package dansplugins.fiefs.commands;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-import preponderous.ponder.minecraft.bukkit.abs.AbstractPluginCommand;
+import dansplugins.fiefs.commands.abs.FiefsCommand;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,7 +10,7 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public class HelpCommand extends AbstractPluginCommand {
+public class HelpCommand extends FiefsCommand {
     private final int maxPage = 2;
 
     public HelpCommand() {

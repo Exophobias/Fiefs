@@ -3,8 +3,8 @@ package dansplugins.fiefs.commands;
 import dansplugins.fiefs.services.ConfigService;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-import preponderous.ponder.minecraft.bukkit.abs.AbstractPluginCommand;
-import preponderous.ponder.misc.ArgumentParser;
+import dansplugins.fiefs.commands.abs.FiefsCommand;
+import dansplugins.fiefs.utils.ArgumentParser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,7 +12,7 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public class ConfigCommand extends AbstractPluginCommand {
+public class ConfigCommand extends FiefsCommand {
     private final ConfigService configService;
 
     public ConfigCommand(ConfigService configService) {
