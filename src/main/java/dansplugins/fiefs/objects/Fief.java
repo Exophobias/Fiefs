@@ -6,7 +6,8 @@ import com.google.gson.reflect.TypeToken;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.utils.Logger;
 import dansplugins.fiefs.utils.UUIDChecker;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Type;
@@ -133,9 +134,9 @@ public class Fief {
     public void sendMembersListToPlayer(Player player) {
         UUIDChecker uuidChecker = new UUIDChecker();
 
-        player.sendMessage(ChatColor.AQUA + "=== Members of " + name + " ===");
+        player.sendMessage(Component.text("=== Members of " + name + " ===", NamedTextColor.AQUA));
         for (UUID playerUUID : members) {
-            player.sendMessage(ChatColor.AQUA + uuidChecker.findPlayerNameBasedOnUUID(playerUUID));
+            player.sendMessage(Component.text(uuidChecker.findPlayerNameBasedOnUUID(playerUUID), NamedTextColor.AQUA));
         }
     }
 

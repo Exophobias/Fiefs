@@ -3,7 +3,8 @@ package dansplugins.fiefs.integrators;
 import com.dansplugins.factionsystem.api.FactionView;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import dansplugins.fiefs.utils.Logger;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
 /**
@@ -62,7 +63,7 @@ public class MedievalFactionsIntegrator {
     public FactionView getFactionForPlayer(Player player) {
         FactionView faction = api.getFactionByPlayer(player.getUniqueId());
         if (faction == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a faction to use this command.");
+            player.sendMessage(Component.text("You must be in a faction to use this command.", NamedTextColor.RED));
         }
         return faction;
     }

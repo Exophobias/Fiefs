@@ -4,7 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -39,17 +40,17 @@ public class DisbandCommand extends FiefsCommand {
 
         Fief fief = persistentData.getFief(player);
         if (fief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
         if (!fief.getOwnerUUID().equals(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "You must be the owner of your fief to disband it.");
+            player.sendMessage(Component.text("You must be the owner of your fief to disband it.", NamedTextColor.RED));
             return false;
         }
 
         persistentData.removeFief(fief);
-        player.sendMessage(ChatColor.GREEN + "Fief disbanded.");
+        player.sendMessage(Component.text("Fief disbanded.", NamedTextColor.GREEN));
         return true;
     }
 

@@ -1,7 +1,8 @@
 package dansplugins.fiefs.objects;
 
 import dansplugins.fiefs.utils.Logger;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -47,7 +48,7 @@ public class FiefFlags {
     }
 
     public void sendFlagList(Player player) {
-        player.sendMessage(ChatColor.AQUA + "" + getFlagsSeparatedByCommas());
+        player.sendMessage(Component.text("" + getFlagsSeparatedByCommas(), NamedTextColor.AQUA));
     }
 
 
@@ -56,23 +57,23 @@ public class FiefFlags {
         if (isFlag(flag)) {
             if (integerValues.containsKey(flag)) {
                 integerValues.replace(flag, Integer.parseInt(value));
-                player.sendMessage(ChatColor.GREEN + "Integer set.");
+                player.sendMessage(Component.text("Integer set.", NamedTextColor.GREEN));
             }
             else if (booleanValues.containsKey(flag)) {
                 booleanValues.replace(flag, Boolean.parseBoolean(value));
-                player.sendMessage(ChatColor.GREEN + "Boolean set.");
+                player.sendMessage(Component.text("Boolean set.", NamedTextColor.GREEN));
             }
             else if (doubleValues.containsKey(flag)) {
                 doubleValues.replace(flag, Double.parseDouble(value));
-                player.sendMessage(ChatColor.GREEN + "Double set.");
+                player.sendMessage(Component.text("Double set.", NamedTextColor.GREEN));
             }
             else if (stringValues.containsKey(flag)) {
                 stringValues.replace(flag, value);
-                player.sendMessage(ChatColor.GREEN + "String set.");
+                player.sendMessage(Component.text("String set.", NamedTextColor.GREEN));
             }
         }
         else {
-            player.sendMessage(ChatColor.RED + "That fief flag wasn't found.");
+            player.sendMessage(Component.text("That fief flag wasn't found.", NamedTextColor.RED));
         }
     }
 

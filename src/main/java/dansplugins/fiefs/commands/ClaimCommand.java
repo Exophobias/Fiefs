@@ -5,7 +5,8 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.services.ChunkService;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Chunk;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -31,7 +32,7 @@ public class ClaimCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -44,7 +45,7 @@ public class ClaimCommand extends FiefsCommand {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 

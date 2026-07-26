@@ -4,7 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -40,7 +41,7 @@ public class MembersCommand extends FiefsCommand {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -63,7 +64,7 @@ public class MembersCommand extends FiefsCommand {
         String fiefName = args[0];
         Fief fief = persistentData.getFief(fiefName);
         if (fief == null) {
-            player.sendMessage(ChatColor.RED + "That fief wasn't found.");
+            player.sendMessage(Component.text("That fief wasn't found.", NamedTextColor.RED));
             return false;
         }
 

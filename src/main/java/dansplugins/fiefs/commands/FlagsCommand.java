@@ -4,7 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -33,7 +34,7 @@ public class FlagsCommand extends FiefsCommand {
     public boolean execute(CommandSender sender, String[] args) {
 
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -46,17 +47,17 @@ public class FlagsCommand extends FiefsCommand {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
         if (!playersFief.getOwnerUUID().equals(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "You must be the owner of your fief to change its flags.");
+            player.sendMessage(Component.text("You must be the owner of your fief to change its flags.", NamedTextColor.RED));
             return false;
         }
 
         if (args.length == 0) {
-            player.sendMessage(ChatColor.RED + "Valid sub-commands: show, set");
+            player.sendMessage(Component.text("Valid sub-commands: show, set", NamedTextColor.RED));
             return false;
         }
 
@@ -65,7 +66,7 @@ public class FlagsCommand extends FiefsCommand {
         }
         else if (args[0].equalsIgnoreCase("set")) {
             if (args.length < 3) {
-                player.sendMessage(ChatColor.RED + "Usage: /fi flags set (flag) (value)");
+                player.sendMessage(Component.text("Usage: /fi flags set (flag) (value)", NamedTextColor.RED));
                 return false;
             }
             else {
@@ -74,7 +75,7 @@ public class FlagsCommand extends FiefsCommand {
             }
         }
         else {
-            player.sendMessage(ChatColor.RED + "Valid sub-commands: show, set");
+            player.sendMessage(Component.text("Valid sub-commands: show, set", NamedTextColor.RED));
         }
         return true;
     }

@@ -3,7 +3,6 @@ package dansplugins.fiefs.commands;
 import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;

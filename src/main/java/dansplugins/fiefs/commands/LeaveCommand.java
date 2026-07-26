@@ -4,7 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -27,7 +28,7 @@ public class LeaveCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -40,20 +41,20 @@ public class LeaveCommand extends FiefsCommand {
 
         Fief fief = persistentData.getFief(player);
         if (fief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
         if (fief.getOwnerUUID().equals(player.getUniqueId())) {
             persistentData.removeFief(fief);
-            player.sendMessage(ChatColor.GREEN + "Left. Your fief was disbanded since you were the owner.");
+            player.sendMessage(Component.text("Left. Your fief was disbanded since you were the owner.", NamedTextColor.GREEN));
             return true;
         }
 
         fief.removeMember(player.getUniqueId());
 
         persistentData.markDirty();
-        player.sendMessage(ChatColor.GREEN + "Left.");
+        player.sendMessage(Component.text("Left.", NamedTextColor.GREEN));
 
         // TODO: inform fief members that the player has left the fief
 

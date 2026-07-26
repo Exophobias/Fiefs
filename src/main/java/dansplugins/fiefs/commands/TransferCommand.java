@@ -5,7 +5,8 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.utils.UUIDChecker;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -29,13 +30,13 @@ public class TransferCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        commandSender.sendMessage(ChatColor.RED + "Usage: /fiefs transfer (playerName)");
+        commandSender.sendMessage(Component.text("Usage: /fiefs transfer (playerName)", NamedTextColor.RED));
         return false;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -48,38 +49,38 @@ public class TransferCommand extends FiefsCommand {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
         if (!playersFief.getOwnerUUID().equals(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "You must be the owner of your fief to transfer it.");
+            player.sendMessage(Component.text("You must be the owner of your fief to transfer it.", NamedTextColor.RED));
             return false;
         }
 
         String targetName = args[0];
 
         if (targetName.equalsIgnoreCase(player.getName())) {
-            player.sendMessage(ChatColor.RED + "You can't transfer your fief to yourself.");
+            player.sendMessage(Component.text("You can't transfer your fief to yourself.", NamedTextColor.RED));
             return false;
         }
 
         UUIDChecker uuidChecker = new UUIDChecker();
         UUID targetUUID = uuidChecker.findUUIDBasedOnPlayerName(targetName);
         if (targetUUID == null) {
-            player.sendMessage(ChatColor.RED + "That player wasn't found.");
+            player.sendMessage(Component.text("That player wasn't found.", NamedTextColor.RED));
             return false;
         }
 
         if (!playersFief.isMember(targetUUID)) {
-            player.sendMessage(ChatColor.RED + "That player is not in your fief.");
+            player.sendMessage(Component.text("That player is not in your fief.", NamedTextColor.RED));
             return false;
         }
 
         playersFief.setOwnerUUID(targetUUID);
 
         persistentData.markDirty();
-        player.sendMessage(ChatColor.GREEN + "Transferred.");
+        player.sendMessage(Component.text("Transferred.", NamedTextColor.GREEN));
 
         // TODO: inform fief members about transfer of power
 

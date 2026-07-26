@@ -5,7 +5,8 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.utils.Logger;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -31,7 +32,7 @@ public class CreateCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        commandSender.sendMessage(ChatColor.RED + "Usage: /fiefs create \"name\"");
+        commandSender.sendMessage(Component.text("Usage: /fiefs create \"name\"", NamedTextColor.RED));
         return false;
     }
 
@@ -48,7 +49,7 @@ public class CreateCommand extends FiefsCommand {
         }
 
         if (persistentData.getFief(player) != null) {
-            player.sendMessage(ChatColor.RED + "You can't create a fief if you're already in a fief.");
+            player.sendMessage(Component.text("You can't create a fief if you're already in a fief.", NamedTextColor.RED));
             return false;
         }
 
@@ -56,20 +57,20 @@ public class CreateCommand extends FiefsCommand {
         ArrayList<String> singleQuoteArgs = new ArrayList<>(argumentParser.getArgumentsInsideDoubleQuotes(args));
 
         if (singleQuoteArgs.size() == 0) {
-            player.sendMessage(ChatColor.RED + "You must put the name of the fief you want to create in between double quotes.");
+            player.sendMessage(Component.text("You must put the name of the fief you want to create in between double quotes.", NamedTextColor.RED));
             return false;
         }
 
         String name = singleQuoteArgs.get(0);
 
         if (persistentData.isNameTaken(name)) {
-            player.sendMessage(ChatColor.RED + "That name is taken.");
+            player.sendMessage(Component.text("That name is taken.", NamedTextColor.RED));
             return false;
         }
 
         Fief fief = new Fief(medievalFactionsIntegrator, name, player.getUniqueId(), faction.getId().getValue(), logger);
         persistentData.addFief(fief);
-        player.sendMessage(ChatColor.GREEN + "Fief created.");
+        player.sendMessage(Component.text("Fief created.", NamedTextColor.GREEN));
         return true;
     }
 }

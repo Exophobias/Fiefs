@@ -1,6 +1,7 @@
 package dansplugins.fiefs.commands;
 
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
 
@@ -45,33 +46,33 @@ public class HelpCommand extends FiefsCommand {
     }
 
     private void sendUsageMessage(CommandSender sender) {
-        sender.sendMessage(ChatColor.RED + "Usage: /fi help { 1 | 2 }");
+        sender.sendMessage(Component.text("Usage: /fi help { 1 | 2 }", NamedTextColor.RED));
     }
 
     private void sendPageOne(CommandSender sender) {
-        sender.sendMessage(ChatColor.AQUA + "=== Fiefs Commands Page 1/" + maxPage + "===");
-        sender.sendMessage(ChatColor.AQUA + "/fi help - View a list of helpful commands.");
-        sender.sendMessage(ChatColor.AQUA + "/fi list - List the fiefs in your faction.");
-        sender.sendMessage(ChatColor.AQUA + "/fi join - Join a fief you've been invited to.");
-        sender.sendMessage(ChatColor.AQUA + "/fi info - View your fief's or another fief's information.");
-        sender.sendMessage(ChatColor.AQUA + "/fi members - View your fief's or another fief's members.");
-        sender.sendMessage(ChatColor.AQUA + "/fi leave - Leave your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi checkclaim - Check which fief owns a chunk.");
-        sender.sendMessage(ChatColor.AQUA + "/fi create - Create a fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi invite - Invite players to your fief.");
+        sender.sendMessage(Component.text("=== Fiefs Commands Page 1/" + maxPage + "===", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi help - View a list of helpful commands.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi list - List the fiefs in your faction.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi join - Join a fief you've been invited to.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi info - View your fief's or another fief's information.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi members - View your fief's or another fief's members.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi leave - Leave your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi checkclaim - Check which fief owns a chunk.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi create - Create a fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi invite - Invite players to your fief.", NamedTextColor.AQUA));
     }
 
     private void sendPageTwo(CommandSender sender) {
-        sender.sendMessage(ChatColor.AQUA + "=== Fiefs Commands Page 2/" + maxPage + "===");
-        sender.sendMessage(ChatColor.AQUA + "/fi disband - Disband your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi claim - Claim a chunk of land for your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi unclaim - Unclaim a chunk of land for your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi desc - Alter the description of your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi rename - Rename your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi kick - Kick a player from your fief.");
-        sender.sendMessage(ChatColor.AQUA + "/fi transfer - Transfer your fief to another player.");
-        sender.sendMessage(ChatColor.AQUA + "/fi flags - View and alter your fief's configuration.");
-        sender.sendMessage(ChatColor.AQUA + "/fi config - View and alter this plugin's config options.");
+        sender.sendMessage(Component.text("=== Fiefs Commands Page 2/" + maxPage + "===", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi disband - Disband your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi claim - Claim a chunk of land for your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi unclaim - Unclaim a chunk of land for your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi desc - Alter the description of your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi rename - Rename your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi kick - Kick a player from your fief.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi transfer - Transfer your fief to another player.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi flags - View and alter your fief's configuration.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi config - View and alter this plugin's config options.", NamedTextColor.AQUA));
     }
 
 }

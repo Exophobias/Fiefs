@@ -1,7 +1,8 @@
 package dansplugins.fiefs.commands;
 
 import dansplugins.fiefs.Fiefs;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
 
@@ -21,10 +22,10 @@ public class DefaultCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender sender) {
-        sender.sendMessage(ChatColor.AQUA + "Fiefs " + fiefs.getVersion());
-        sender.sendMessage(ChatColor.AQUA + "Developer: Daniel McCoy Stephenson");
-        sender.sendMessage(ChatColor.AQUA + "Requested by: Laughingspade");
-        sender.sendMessage(ChatColor.AQUA + "Wiki: https://github.com/dmccoystephenson/Fiefs/wiki");
+        sender.sendMessage(Component.text("Fiefs " + fiefs.getVersion(), NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("Developer: Daniel McCoy Stephenson", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("Requested by: Laughingspade", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("Wiki: https://github.com/dmccoystephenson/Fiefs/wiki", NamedTextColor.AQUA));
         return true;
     }
 

@@ -4,7 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -27,13 +28,13 @@ public class JoinCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        commandSender.sendMessage(ChatColor.RED + "Usage: /fiefs join (fiefName)");
+        commandSender.sendMessage(Component.text("Usage: /fiefs join (fiefName)", NamedTextColor.RED));
         return false;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -46,7 +47,7 @@ public class JoinCommand extends FiefsCommand {
 
         Fief fief = persistentData.getFief(player);
         if (fief != null) {
-            player.sendMessage(ChatColor.RED + "You're already in a fief.");
+            player.sendMessage(Component.text("You're already in a fief.", NamedTextColor.RED));
             return false;
         }
 
@@ -55,24 +56,24 @@ public class JoinCommand extends FiefsCommand {
         Fief targetFief = persistentData.getFief(fiefName);
 
         if (targetFief == null) {
-            player.sendMessage(ChatColor.RED + "That fief wasn't found.");
+            player.sendMessage(Component.text("That fief wasn't found.", NamedTextColor.RED));
             return false;
         }
 
         if (!targetFief.getFactionId().equals(faction.getId().getValue())) {
-            player.sendMessage(ChatColor.RED + "That fief isn't in your faction.");
+            player.sendMessage(Component.text("That fief isn't in your faction.", NamedTextColor.RED));
             return false;
         }
 
         if (!targetFief.isInvited(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "You are not invited to this fief.");
+            player.sendMessage(Component.text("You are not invited to this fief.", NamedTextColor.RED));
             return false;
         }
 
         targetFief.addMember(player.getUniqueId());
 
         persistentData.markDirty();
-        player.sendMessage(ChatColor.GREEN + "Joined.");
+        player.sendMessage(Component.text("Joined.", NamedTextColor.GREEN));
 
         // TODO: alert fief members that the player has joined the fief
 

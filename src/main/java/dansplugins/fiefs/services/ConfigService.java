@@ -1,7 +1,8 @@
 package dansplugins.fiefs.services;
 
 import dansplugins.fiefs.Fiefs;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -52,38 +53,38 @@ public class ConfigService {
         if (getConfig().isSet(option)) {
 
             if (option.equalsIgnoreCase("version")) {
-                sender.sendMessage(ChatColor.RED + "Cannot set version.");
+                sender.sendMessage(Component.text("Cannot set version.", NamedTextColor.RED));
                 return;
             } else if (option.equalsIgnoreCase("a")) { // no integers yet
                 getConfig().set(option, Integer.parseInt(value));
-                sender.sendMessage(ChatColor.GREEN + "Integer set.");
+                sender.sendMessage(Component.text("Integer set.", NamedTextColor.GREEN));
             } else if (option.equalsIgnoreCase("debugMode")
                     || option.equalsIgnoreCase("limitLand")
                     || option.equalsIgnoreCase("enableTerritoryAlerts")) {
                 getConfig().set(option, Boolean.parseBoolean(value));
-                sender.sendMessage(ChatColor.GREEN + "Boolean set.");
+                sender.sendMessage(Component.text("Boolean set.", NamedTextColor.GREEN));
             } else if (option.equalsIgnoreCase("c")) { // no doubles yet
                 getConfig().set(option, Double.parseDouble(value));
-                sender.sendMessage(ChatColor.GREEN + "Double set.");
+                sender.sendMessage(Component.text("Double set.", NamedTextColor.GREEN));
             } else {
                 getConfig().set(option, value);
-                sender.sendMessage(ChatColor.GREEN + "String set.");
+                sender.sendMessage(Component.text("String set.", NamedTextColor.GREEN));
             }
 
             // save
             fiefs.saveConfig();
             altered = true;
         } else {
-            sender.sendMessage(ChatColor.RED + "That config option wasn't found.");
+            sender.sendMessage(Component.text("That config option wasn't found.", NamedTextColor.RED));
         }
     }
 
     public void sendConfigList(CommandSender sender) {
-        sender.sendMessage(ChatColor.AQUA + "=== Config List ===");
-        sender.sendMessage(ChatColor.AQUA + "version: " + getConfig().getString("version")
+        sender.sendMessage(Component.text("=== Config List ===", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("version: " + getConfig().getString("version")
                 + ", debugMode: " + getBoolean("debugMode")
                 + ", limitLand: " + getBoolean("limitLand")
-                + ", enableTerritoryAlerts: " + getBoolean("enableTerritoryAlerts"));
+                + ", enableTerritoryAlerts: " + getBoolean("enableTerritoryAlerts"), NamedTextColor.AQUA));
     }
 
     public boolean hasBeenAltered() {

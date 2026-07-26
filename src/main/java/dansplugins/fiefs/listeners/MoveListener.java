@@ -4,7 +4,8 @@ import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.services.ChunkService;
 import dansplugins.fiefs.services.ConfigService;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -49,7 +50,7 @@ public class MoveListener implements Listener {
 
         // if moving from unclaimed land into claimed land
         if (fromChunk == null && toChunk != null) {
-            player.sendMessage(ChatColor.GREEN + "Entering " + toChunk.getFief());
+            player.sendMessage(Component.text("Entering " + toChunk.getFief(), NamedTextColor.GREEN));
             return;
         }
 
@@ -57,7 +58,7 @@ public class MoveListener implements Listener {
         if (fromChunk != null && toChunk != null) {
             // if the holders of the chunks are different
             if (!fromChunk.getFief().equalsIgnoreCase(toChunk.getFief())) {
-                player.sendMessage(ChatColor.AQUA + "Entering " + toChunk.getFief());
+                player.sendMessage(Component.text("Entering " + toChunk.getFief(), NamedTextColor.AQUA));
                 return;
             }
         }
@@ -65,7 +66,7 @@ public class MoveListener implements Listener {
         // if moving into unclaimed land
         if (fromChunk != null && toChunk == null) {
             if (medievalFactionsIntegrator.getAPI().getClaimAt(event.getTo().getChunk()) != null) {
-                player.sendMessage(ChatColor.AQUA + "Leaving " + fromChunk.getFief());
+                player.sendMessage(Component.text("Leaving " + fromChunk.getFief(), NamedTextColor.AQUA));
             }
         }
 

@@ -1,7 +1,8 @@
 package dansplugins.fiefs.services;
 
 import dansplugins.fiefs.commands.abs.FiefsCommand;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 
 import java.util.Arrays;
@@ -50,7 +51,7 @@ public class CommandService {
 
         FiefsCommand command = commandsByName.get(args[0].toLowerCase(Locale.ROOT));
         if (command == null) {
-            sender.sendMessage(ChatColor.RED + notFoundMessage);
+            sender.sendMessage(Component.text(notFoundMessage, NamedTextColor.RED));
             return false;
         }
 
@@ -71,8 +72,8 @@ public class CommandService {
                 return true;
             }
         }
-        sender.sendMessage(ChatColor.RED + "In order to use this command, you need one of the following permissions: "
-                + String.join(", ", command.getPermissions()));
+        sender.sendMessage(Component.text("In order to use this command, you need one of the following permissions: "
+                + String.join(", ", command.getPermissions()), NamedTextColor.RED));
         return false;
     }
 }

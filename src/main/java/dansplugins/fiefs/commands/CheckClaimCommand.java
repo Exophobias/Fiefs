@@ -4,7 +4,8 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.services.ChunkService;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Chunk;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -29,7 +30,7 @@ public class CheckClaimCommand extends FiefsCommand {
     @Override
     public boolean execute(CommandSender sender) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -40,14 +41,14 @@ public class CheckClaimCommand extends FiefsCommand {
         if (claimedChunk != null) {
             Fief owningFief = persistentData.getFief(claimedChunk.getFief());
             if (owningFief != null) {
-                player.sendMessage(ChatColor.AQUA + "This land is claimed by " + owningFief.getName() + " and is located in " + persistentData.getFactionNameOfFief(owningFief));
+                player.sendMessage(Component.text("This land is claimed by " + owningFief.getName() + " and is located in " + persistentData.getFactionNameOfFief(owningFief), NamedTextColor.AQUA));
             }
             else {
-                player.sendMessage(ChatColor.AQUA + "This land is claimed by " + claimedChunk.getFief() + ".");
+                player.sendMessage(Component.text("This land is claimed by " + claimedChunk.getFief() + ".", NamedTextColor.AQUA));
             }
         }
         else {
-            player.sendMessage(ChatColor.GREEN + "This land is currently not claimed by a fief.");
+            player.sendMessage(Component.text("This land is currently not claimed by a fief.", NamedTextColor.GREEN));
         }
         return true;
     }

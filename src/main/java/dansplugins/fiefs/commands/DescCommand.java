@@ -4,7 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -28,7 +29,7 @@ public class DescCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        commandSender.sendMessage(ChatColor.RED + "Usage: /fiefs desc 'new description'");
+        commandSender.sendMessage(Component.text("Usage: /fiefs desc 'new description'", NamedTextColor.RED));
         return false;
     }
 
@@ -46,7 +47,7 @@ public class DescCommand extends FiefsCommand {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -54,7 +55,7 @@ public class DescCommand extends FiefsCommand {
         ArrayList<String> singleQuoteArgs = new ArrayList<>(argumentParser.getArgumentsInsideDoubleQuotes(args));
 
         if (singleQuoteArgs.size() == 0) {
-            player.sendMessage(ChatColor.RED + "New description must be between double quotes.");
+            player.sendMessage(Component.text("New description must be between double quotes.", NamedTextColor.RED));
             return false;
         }
 

@@ -5,7 +5,8 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
@@ -29,13 +30,13 @@ public class RenameCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        commandSender.sendMessage(ChatColor.RED + "Usage: /fiefs rename \"new name\"");
+        commandSender.sendMessage(Component.text("Usage: /fiefs rename \"new name\"", NamedTextColor.RED));
         return false;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "Only players can use this command.");
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -48,12 +49,12 @@ public class RenameCommand extends FiefsCommand {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
-            player.sendMessage(ChatColor.RED + "You must be in a fief to use this command.");
+            player.sendMessage(Component.text("You must be in a fief to use this command.", NamedTextColor.RED));
             return false;
         }
 
         if (!playersFief.getOwnerUUID().equals(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "You must be the owner of your fief to rename it.");
+            player.sendMessage(Component.text("You must be the owner of your fief to rename it.", NamedTextColor.RED));
             return false;
         }
 
@@ -61,14 +62,14 @@ public class RenameCommand extends FiefsCommand {
         ArrayList<String> singleQuoteArgs = new ArrayList<>(argumentParser.getArgumentsInsideDoubleQuotes(args));
 
         if (singleQuoteArgs.size() == 0) {
-            player.sendMessage(ChatColor.RED + "You must put the new name of your fief in between double quotes.");
+            player.sendMessage(Component.text("You must put the new name of your fief in between double quotes.", NamedTextColor.RED));
             return false;
         }
 
         String newName = singleQuoteArgs.get(0);
 
         if (persistentData.isNameTaken(newName)) {
-            player.sendMessage(ChatColor.RED + "That name is taken.");
+            player.sendMessage(Component.text("That name is taken.", NamedTextColor.RED));
             return false;
         }
 
@@ -87,7 +88,7 @@ public class RenameCommand extends FiefsCommand {
         playersFief.setName(newName);
 
         persistentData.markDirty();
-        player.sendMessage(ChatColor.GREEN + "Fief renamed.");
+        player.sendMessage(Component.text("Fief renamed.", NamedTextColor.GREEN));
         return true;
     }
 }

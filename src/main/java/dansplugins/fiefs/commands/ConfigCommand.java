@@ -1,7 +1,8 @@
 package dansplugins.fiefs.commands;
 
 import dansplugins.fiefs.services.ConfigService;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
 import dansplugins.fiefs.utils.ArgumentParser;
@@ -27,7 +28,7 @@ public class ConfigCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.RED + "Sub-commands: show, set");
+            sender.sendMessage(Component.text("Sub-commands: show, set", NamedTextColor.RED));
             return false;
         }
 
@@ -37,7 +38,7 @@ public class ConfigCommand extends FiefsCommand {
         }
         else if (args[0].equalsIgnoreCase("set")) {
             if (args.length < 3) {
-                sender.sendMessage(ChatColor.RED + "Usage: /fi config set (option) (value)");
+                sender.sendMessage(Component.text("Usage: /fi config set (option) (value)", NamedTextColor.RED));
                 return false;
             }
             String option = args[1];
@@ -47,7 +48,7 @@ public class ConfigCommand extends FiefsCommand {
                 ArgumentParser argumentParser = new ArgumentParser();
                 ArrayList<String> singleQuoteArgs = new ArrayList<>(argumentParser.getArgumentsInsideDoubleQuotes(args));
                 if (singleQuoteArgs.size() == 0) {
-                    sender.sendMessage(ChatColor.RED + "New message must be in between double quotes.");
+                    sender.sendMessage(Component.text("New message must be in between double quotes.", NamedTextColor.RED));
                     return false;
                 }
                 value = singleQuoteArgs.get(0);
@@ -60,7 +61,7 @@ public class ConfigCommand extends FiefsCommand {
             return true;
         }
         else {
-            sender.sendMessage(ChatColor.RED + "Sub-commands: show, set");
+            sender.sendMessage(Component.text("Sub-commands: show, set", NamedTextColor.RED));
             return false;
         }
     }

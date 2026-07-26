@@ -6,7 +6,8 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Chunk;
 import org.bukkit.entity.Player;
 
@@ -37,20 +38,20 @@ public class ChunkService {
         ClaimView mfClaim = medievalFactionsIntegrator.getAPI().getClaimAt(chunk);
 
         if (mfClaim == null) {
-            player.sendMessage(ChatColor.RED + "You can't claim land that your faction hasn't claimed.");
+            player.sendMessage(Component.text("You can't claim land that your faction hasn't claimed.", NamedTextColor.RED));
             return false;
         }
 
         // Verify the MF claim belongs to the player's faction
         FactionView playerFaction = medievalFactionsIntegrator.getAPI().getFactionByPlayer(player.getUniqueId());
         if (playerFaction == null || !mfClaim.getFactionId().equals(playerFaction.getId())) {
-            player.sendMessage(ChatColor.RED + "You can't claim land that your faction hasn't claimed.");
+            player.sendMessage(Component.text("You can't claim land that your faction hasn't claimed.", NamedTextColor.RED));
             return false;
         }
 
         ClaimedChunk claimedChunk = getClaimedChunk(chunk);
         if (claimedChunk != null) {
-            player.sendMessage(ChatColor.RED + "This chunk is already claimed by " + claimedChunk.getFief() + ".");
+            player.sendMessage(Component.text("This chunk is already claimed by " + claimedChunk.getFief() + ".", NamedTextColor.RED));
             return false;
         }
 
@@ -58,13 +59,13 @@ public class ChunkService {
         // never read -- the limit applied regardless, so the config lied to the admin.
         if (configService.getBoolean("limitLand")
                 && persistentData.getNumChunksClaimedByFief(fief) >= fief.getCumulativePowerLevel()) {
-            player.sendMessage(ChatColor.RED + "Your fief has reached its demesne limit.");
+            player.sendMessage(Component.text("Your fief has reached its demesne limit.", NamedTextColor.RED));
             return false;
         }
 
         ClaimedChunk newClaimedChunk = new ClaimedChunk(chunk, fief.getFactionId(), fief.getName());
         persistentData.addChunk(newClaimedChunk);
-        player.sendMessage(ChatColor.GREEN + "Claimed.");
+        player.sendMessage(Component.text("Claimed.", NamedTextColor.GREEN));
         return true;
     }
 
@@ -72,19 +73,19 @@ public class ChunkService {
         // check that chunk is actually claimed
         ClaimedChunk claimedChunk = getClaimedChunk(chunk);
         if (claimedChunk == null) {
-            player.sendMessage(ChatColor.RED + "That chunk is not claimed by a fief.");
+            player.sendMessage(Component.text("That chunk is not claimed by a fief.", NamedTextColor.RED));
             return false;
         }
 
         // check that chunk is claimed by the player's fief
         if (!claimedChunk.getFief().equalsIgnoreCase(fief.getName())) {
-            player.sendMessage(ChatColor.RED + "That chunk doesn't belong to your fief.");
+            player.sendMessage(Component.text("That chunk doesn't belong to your fief.", NamedTextColor.RED));
             return false;
         }
 
         // unclaim the chunk
         persistentData.removeChunk(claimedChunk);
-        player.sendMessage(ChatColor.GREEN + "Unclaimed.");
+        player.sendMessage(Component.text("Unclaimed.", NamedTextColor.GREEN));
         return true;
     }
 }
