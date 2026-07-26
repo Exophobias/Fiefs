@@ -25,11 +25,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
+ * NOT final, deliberately: MockBukkit loads a plugin by generating a ByteBuddy subclass of the main
+ * class, so marking this final makes every test in the suite fail with "Cannot subclass primitive,
+ * array or final types". Re-adding final breaks the whole test tier.
+ *
  * @author Daniel McCoy Stephenson
  */
-// NOT final, deliberately: MockBukkit loads a plugin by generating a ByteBuddy subclass of the main
-// class, so marking this final makes every test in the suite fail with "Cannot subclass primitive,
-// array or final types". Re-adding final breaks the whole test tier.
 public class Fiefs extends JavaPlugin {
     private final String pluginVersion = "v" + getPluginMeta().getVersion();
 
