@@ -27,7 +27,10 @@ import java.util.Arrays;
 /**
  * @author Daniel McCoy Stephenson
  */
-public final class Fiefs extends JavaPlugin {
+// NOT final, deliberately: MockBukkit loads a plugin by generating a ByteBuddy subclass of the main
+// class, so marking this final makes every test in the suite fail with "Cannot subclass primitive,
+// array or final types". Re-adding final breaks the whole test tier.
+public class Fiefs extends JavaPlugin {
     private final String pluginVersion = "v" + getPluginMeta().getVersion();
 
     private final CommandService commandService = new CommandService();
@@ -141,8 +144,19 @@ public final class Fiefs extends JavaPlugin {
         return new FiefsAPI(persistentData);
     }
 
+    /**
+     * The live in-memory state.
+     *
+     * <p>Public for tests, which need to assert on fiefs and claims directly rather than through the
+     * read-only {@link FiefsAPI} wrapper. Other plugins should use {@link #getAPI()} — this returns a
+     * mutable internal object and its shape is not stable.
+     */
+    public PersistentData getPersistentData() {
+        return persistentData;
+    }
+
     private void initializeConfig() {
-        if (!(new File("./plugins/Fiefs/config.yml").exists())) {
+        if (!(new File(getDataFolder(), "config.yml").exists())) {
             configService.saveMissingConfigDefaultsIfNotPresent();
         }
         else {

@@ -22,6 +22,24 @@ public class ArgumentParser {
      * @return every double-quoted section of {@code args}, in order, without the surrounding quotes.
      *         Empty if there are none.
      */
+    /**
+     * Resolves a fief name from a command's arguments, accepting both {@code "Ashford Mill"} and a
+     * bare {@code Ashford Mill}.
+     *
+     * <p>{@code /fi create} and {@code /fi rename} take quoted names, so multi-word fiefs exist — but
+     * {@code join}, {@code info} and {@code members} used only {@code args[0]}, which made every fief
+     * with a space in its name impossible to join or inspect.
+     *
+     * @return the name, or null if there are no arguments.
+     */
+    public String getFiefNameFromArguments(String[] args) {
+        if (args == null || args.length == 0) {
+            return null;
+        }
+        List<String> quoted = getArgumentsInsideDoubleQuotes(args);
+        return quoted.isEmpty() ? String.join(" ", args) : quoted.get(0);
+    }
+
     public List<String> getArgumentsInsideDoubleQuotes(String[] args) {
         List<String> results = new ArrayList<>();
         if (args == null || args.length == 0) {

@@ -4,6 +4,7 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.utils.ArgumentParser;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -51,7 +52,7 @@ public class JoinCommand extends FiefsCommand {
             return false;
         }
 
-        String fiefName = args[0];
+        String fiefName = new ArgumentParser().getFiefNameFromArguments(args);
 
         Fief targetFief = persistentData.getFief(fiefName);
 

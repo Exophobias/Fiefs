@@ -34,7 +34,6 @@ public class StorageService {
     private final Logger logger;
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
 
-    private final static String FILE_PATH = "./plugins/Fiefs/";
     private final static String FIEFS_FILE_NAME = "fiefs.json";
     private final static String CLAIMED_CHUNKS_FILE_NAME = "claimedChunks.json";
     private final static Type LIST_MAP_TYPE = new TypeToken<ArrayList<HashMap<String, String>>>(){}.getType();
@@ -59,6 +58,18 @@ public class StorageService {
         if (persistentData.isDirty() || configService.hasBeenAltered()) {
             save();
         }
+    }
+
+    /**
+     * A file inside the plugin's own data folder.
+     *
+     * <p>Previously hardcoded to "./plugins/Fiefs/", which assumes the server's plugin directory is
+     * named "plugins" and sits in the working directory. Bukkit already tells a plugin where its data
+     * lives; using that also means tests get an isolated temp folder rather than writing into the
+     * repository.
+     */
+    private File dataFile(String name) {
+        return new File(fiefs.getDataFolder(), name);
     }
 
     public void save() {
@@ -105,8 +116,8 @@ public class StorageService {
      * complete on disk.
      */
     private void writeOutFiles(List<Map<String, String>> saveData, String fileName) {
-        Path target = Paths.get(FILE_PATH, fileName);
-        Path temp = Paths.get(FILE_PATH, fileName + ".tmp");
+        Path target = dataFile(fileName).toPath();
+        Path temp = dataFile(fileName + ".tmp").toPath();
         try {
             Files.createDirectories(target.getParent());
             try (Writer writer = new OutputStreamWriter(Files.newOutputStream(temp), StandardCharsets.UTF_8)) {
@@ -128,7 +139,7 @@ public class StorageService {
     private void loadFiefs() {
         persistentData.clearFiefs();
 
-        ArrayList<HashMap<String, String>> data = loadDataFromFilename(FILE_PATH + FIEFS_FILE_NAME);
+        ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(FIEFS_FILE_NAME));
 
         for (Map<String, String> fiefData : data){
             Fief fief = new Fief(fiefData, medievalFactionsIntegrator, logger);
@@ -139,7 +150,7 @@ public class StorageService {
     private void loadClaimedChunks() {
         persistentData.clearClaimedChunks();
 
-        ArrayList<HashMap<String, String>> data = loadDataFromFilename(FILE_PATH + CLAIMED_CHUNKS_FILE_NAME);
+        ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(CLAIMED_CHUNKS_FILE_NAME));
 
         for (Map<String, String> claimedChunkData : data){
             ClaimedChunk claimedChunk = new ClaimedChunk(claimedChunkData);
@@ -161,8 +172,7 @@ public class StorageService {
      * the atomic replace in {@link #writeOutFiles}), and Gson returns {@code null} for an empty file,
      * which used to NPE in the caller.
      */
-    private ArrayList<HashMap<String, String>> loadDataFromFilename(String filename) {
-        File file = new File(filename);
+    private ArrayList<HashMap<String, String>> loadDataFromFilename(File file) {
         if (!file.exists()) {
             // Normal on first run.
             return new ArrayList<>();
@@ -171,9 +181,9 @@ public class StorageService {
             ArrayList<HashMap<String, String>> data = gson.fromJson(reader, LIST_MAP_TYPE);
             return data != null ? data : new ArrayList<>();
         } catch (Exception e) {
-            logger.log("Failed to read " + filename + ": " + e);
+            logger.log("Failed to read " + file + ": " + e);
             throw new IllegalStateException(
-                    "Fiefs could not read " + filename + ". Refusing to enable so the file is not "
+                    "Fiefs could not read " + file + ". Refusing to enable so the file is not "
                             + "overwritten with empty data. Fix or remove the file, then restart.", e);
         }
     }
