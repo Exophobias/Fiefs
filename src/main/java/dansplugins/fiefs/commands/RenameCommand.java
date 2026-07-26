@@ -85,6 +85,8 @@ public class RenameCommand extends FiefsCommand {
         }
 
         playersFief.setName(newName);
+
+        persistentData.markDirty();
         player.sendMessage(ChatColor.GREEN + "Fief renamed.");
         return true;
     }

@@ -61,6 +61,8 @@ public class DescCommand extends FiefsCommand {
         String newDescription = singleQuoteArgs.get(0);
 
         playersFief.setDescription(newDescription);
+
+        persistentData.markDirty();
         return true;
     }
 

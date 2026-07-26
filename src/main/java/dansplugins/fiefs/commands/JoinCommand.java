@@ -70,6 +70,8 @@ public class JoinCommand extends FiefsCommand {
         }
 
         targetFief.addMember(player.getUniqueId());
+
+        persistentData.markDirty();
         player.sendMessage(ChatColor.GREEN + "Joined.");
 
         // TODO: alert fief members that the player has joined the fief

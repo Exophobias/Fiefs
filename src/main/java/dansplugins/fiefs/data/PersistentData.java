@@ -21,8 +21,32 @@ public class PersistentData {
     private final ArrayList<Fief> fiefs = new ArrayList<>();
     private final ArrayList<ClaimedChunk> claimedChunks = new ArrayList<>();
 
+    /**
+     * Whether in-memory state has diverged from disk, so the autosave can skip an idle server.
+     *
+     * <p>INVARIANT: every mutator here sets it. Mutating a {@link Fief} in place (rename, description,
+     * flags, membership, owner) does NOT route through this class, so those call sites must call
+     * {@link #markDirty()} themselves. Missing one costs at most the changes made since the last
+     * save — shutdown always saves unconditionally.
+     */
+    private boolean dirty = false;
+
     public PersistentData(MedievalFactionsIntegrator medievalFactionsIntegrator) {
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
+    }
+
+    /** Flags in-memory state as needing a write. See {@link #dirty}. */
+    public void markDirty() {
+        dirty = true;
+    }
+
+    public boolean isDirty() {
+        return dirty;
+    }
+
+    /** Called by StorageService after a successful write. */
+    public void clearDirty() {
+        dirty = false;
     }
 
     public ArrayList<Fief> getFiefs() {
@@ -92,6 +116,7 @@ public class PersistentData {
             return false;
         }
         fiefs.add(fief);
+        markDirty();
         return true;
     }
 
@@ -99,6 +124,7 @@ public class PersistentData {
         // Unclaim all of the fief's land so the chunks aren't orphaned when the
         // fief is disbanded (via /fi disband or when its faction disbands). #133
         claimedChunks.removeIf(chunk -> chunk.getFief().equalsIgnoreCase(fiefToRemove.getName()));
+        markDirty();
         return fiefs.remove(fiefToRemove);
     }
 
@@ -138,10 +164,12 @@ public class PersistentData {
 
     public void addChunk(ClaimedChunk chunk) {
         claimedChunks.add(chunk);
+        markDirty();
     }
 
     public void removeChunk(ClaimedChunk chunk) {
         claimedChunks.remove(chunk);
+        markDirty();
     }
 
     public int getNumChunks() {

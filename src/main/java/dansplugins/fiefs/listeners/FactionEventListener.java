@@ -66,7 +66,7 @@ public class FactionEventListener implements Listener {
         Fief fief = persistentData.getFief(playerId);
         if (fief != null) {
             fief.removeMember(playerId);
-
+            persistentData.markDirty();
             // TODO: inform fief members that the player left the faction
         }
     }

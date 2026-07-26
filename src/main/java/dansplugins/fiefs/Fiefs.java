@@ -41,7 +41,7 @@ public final class Fiefs extends JavaPlugin {
     private final PersistentData persistentData = new PersistentData(medievalFactionsIntegrator);
     private final StorageService storageService = new StorageService(configService, this, persistentData, logger, medievalFactionsIntegrator);
     private final Scheduler scheduler = new Scheduler(logger, this, storageService);
-    private final ChunkService chunkService = new ChunkService(persistentData, medievalFactionsIntegrator);
+    private final ChunkService chunkService = new ChunkService(persistentData, medievalFactionsIntegrator, configService);
 
     /**
      * Whether {@link StorageService#load()} completed, i.e. whether {@link #persistentData} actually

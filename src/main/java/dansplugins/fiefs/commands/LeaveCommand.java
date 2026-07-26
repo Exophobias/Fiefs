@@ -51,6 +51,8 @@ public class LeaveCommand extends FiefsCommand {
         }
 
         fief.removeMember(player.getUniqueId());
+
+        persistentData.markDirty();
         player.sendMessage(ChatColor.GREEN + "Left.");
 
         // TODO: inform fief members that the player has left the fief

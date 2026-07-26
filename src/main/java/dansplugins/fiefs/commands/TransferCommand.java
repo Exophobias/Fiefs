@@ -77,6 +77,8 @@ public class TransferCommand extends FiefsCommand {
         }
 
         playersFief.setOwnerUUID(targetUUID);
+
+        persistentData.markDirty();
         player.sendMessage(ChatColor.GREEN + "Transferred.");
 
         // TODO: inform fief members about transfer of power

@@ -38,7 +38,8 @@ public class StorageService {
     private final static String FIEFS_FILE_NAME = "fiefs.json";
     private final static String CLAIMED_CHUNKS_FILE_NAME = "claimedChunks.json";
     private final static Type LIST_MAP_TYPE = new TypeToken<ArrayList<HashMap<String, String>>>(){}.getType();
-    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();;
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
 
     public StorageService(ConfigService configService, Fiefs fiefs, PersistentData persistentData, Logger logger, MedievalFactionsIntegrator medievalFactionsIntegrator) {
         this.configService = configService;
@@ -48,12 +49,25 @@ public class StorageService {
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
     }
 
+    /**
+     * Writes only if something actually changed. Used by the autosave.
+     *
+     * <p>The autosave previously serialised and rewrote both files every hour regardless, on the main
+     * thread with pretty-printed Gson. An idle server now does no work at all.
+     */
+    public void saveIfDirty() {
+        if (persistentData.isDirty() || configService.hasBeenAltered()) {
+            save();
+        }
+    }
+
     public void save() {
         saveFiefs();
         saveClaimedChunks();
         if (configService.hasBeenAltered()) {
             fiefs.saveConfig();
         }
+        persistentData.clearDirty();
     }
 
     public void load() {

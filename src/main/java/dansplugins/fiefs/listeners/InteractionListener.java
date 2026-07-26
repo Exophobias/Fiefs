@@ -228,6 +228,6 @@ public class InteractionListener implements Listener {
             return false;
         }
 
-        return !chunkHolder.equals(playersFief);
+        return !chunkHolder.isSameFief(playersFief);
     }
 }

@@ -16,10 +16,12 @@ import org.bukkit.entity.Player;
 public class ChunkService {
     private final PersistentData persistentData;
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
+    private final ConfigService configService;
 
-    public ChunkService(PersistentData persistentData, MedievalFactionsIntegrator medievalFactionsIntegrator) {
+    public ChunkService(PersistentData persistentData, MedievalFactionsIntegrator medievalFactionsIntegrator, ConfigService configService) {
         this.persistentData = persistentData;
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
+        this.configService = configService;
     }
 
     public ClaimedChunk getClaimedChunk(Chunk chunk) {
@@ -52,7 +54,10 @@ public class ChunkService {
             return false;
         }
 
-        if (persistentData.getNumChunksClaimedByFief(fief) >= fief.getCumulativePowerLevel()) {
+        // The limitLand option was previously written to config and echoed by /fi config show, but
+        // never read -- the limit applied regardless, so the config lied to the admin.
+        if (configService.getBoolean("limitLand")
+                && persistentData.getNumChunksClaimedByFief(fief) >= fief.getCumulativePowerLevel()) {
             player.sendMessage(ChatColor.RED + "Your fief has reached its demesne limit.");
             return false;
         }

@@ -143,7 +143,14 @@ public class Fief {
         return flags;
     }
 
-    public boolean equals(Fief fief) {
+    /**
+     * Whether this is the same fief as the given one.
+     *
+     * <p>Deliberately NOT named equals: it was an overload of Object.equals, not an override, and had
+     * no matching hashCode. It worked only because the single call site's static types happened to
+     * select it -- change one of those to Object and the semantics silently flip to identity.
+     */
+    public boolean isSameFief(Fief fief) {
         return fief.getOwnerUUID().equals(this.getOwnerUUID())
                 && fief.getName().equals(this.getName())
                 && fief.getFactionId().equals(this.getFactionId());

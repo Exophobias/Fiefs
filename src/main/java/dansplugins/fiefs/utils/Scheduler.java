@@ -19,14 +19,16 @@ public class Scheduler {
     }
 
     public void scheduleAutosave() {
-        logger.log("Scheduling hourly autosave.");
-        int delay = 60 * 60; // 1 hour
-        int secondsUntilRepeat = 60 * 60; // 1 hour
+        logger.log("Scheduling autosave.");
+        // Every 5 minutes rather than hourly. The write is now conditional on something having
+        // actually changed, so an idle server pays nothing for the shorter interval, while a busy one
+        // narrows the crash window from an hour of lost fiefs to five minutes.
+        int delay = 5 * 60;
+        int secondsUntilRepeat = 5 * 60;
         Bukkit.getScheduler().scheduleSyncRepeatingTask(fiefs, new Runnable() {
             @Override
             public void run() {
-                logger.log("Saving. This will happen hourly.");
-                storageService.save();
+                storageService.saveIfDirty();
             }
         }, delay * 20, secondsUntilRepeat * 20);
     }

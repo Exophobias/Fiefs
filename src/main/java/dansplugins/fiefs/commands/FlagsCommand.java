@@ -70,6 +70,7 @@ public class FlagsCommand extends FiefsCommand {
             }
             else {
                 playersFief.getFlags().setFlag(args[1], args[2], player);
+                persistentData.markDirty();
             }
         }
         else {

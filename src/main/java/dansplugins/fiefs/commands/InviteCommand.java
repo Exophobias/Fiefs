@@ -92,6 +92,7 @@ public class InviteCommand extends FiefsCommand {
 
         playersFief.invitePlayer(targetUUID);
 
+        persistentData.markDirty();
         Player target = Bukkit.getServer().getPlayer(targetUUID);
         if (target != null) {
             target.sendMessage(ChatColor.AQUA + "You have been invited to " + playersFief.getName() + ". Type /fiefs join (fiefName) to join.");

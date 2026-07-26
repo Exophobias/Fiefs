@@ -88,6 +88,7 @@ public class KickCommand extends FiefsCommand {
 
         playersFief.removeMember(targetUUID);
 
+        persistentData.markDirty();
         Player target = Bukkit.getServer().getPlayer(targetUUID);
         if (target != null) {
             target.sendMessage(ChatColor.AQUA + "You have been kicked from " + playersFief.getName() + " by " + player.getName() + ".");
