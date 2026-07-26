@@ -123,12 +123,14 @@ jobs:
       # dependency regained a bundling scope.
       - name: Verify the jar bundles no third-party classes
         run: |
-          stray=$(unzip -l target/Fiefs.jar | awk '{print $4}' \
-            | grep -vE '^(dansplugins/|META-INF/|plugin\.yml|)$' || true)
+          # unzip -Z1 lists entry names only. Do NOT use `unzip -l | awk '{print $4}'`: it emits the
+          # "Name"/"----" header rows, and anchoring the allowed prefixes with $ then rejects real
+          # entries like META-INF/MANIFEST.MF. That mistake made this check fail on a clean jar.
+          stray=$(unzip -Z1 target/Fiefs.jar | grep -vE '^(dansplugins/|META-INF/|plugin\.yml)' || true)
           if [ -n "$stray" ]; then
             echo "::error::Unexpected non-Fiefs entries in the jar:"; echo "$stray"; exit 1
           fi
-          echo "Jar contains only Fiefs classes."
+          echo "Jar contains only Fiefs classes ($(unzip -Z1 target/Fiefs.jar | wc -l) entries)."
 
       - name: Upload plugin jar
         uses: actions/upload-artifact@v7
