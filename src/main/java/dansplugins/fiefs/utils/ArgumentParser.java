@@ -19,10 +19,6 @@ public class ArgumentParser {
     private static final Pattern DOUBLE_QUOTED = Pattern.compile("\"[^\"]*\"");
 
     /**
-     * @return every double-quoted section of {@code args}, in order, without the surrounding quotes.
-     *         Empty if there are none.
-     */
-    /**
      * Resolves a fief name from a command's arguments, accepting both {@code "Ashford Mill"} and a
      * bare {@code Ashford Mill}.
      *
@@ -40,6 +36,10 @@ public class ArgumentParser {
         return quoted.isEmpty() ? String.join(" ", args) : quoted.get(0);
     }
 
+    /**
+     * @return every double-quoted section of {@code args}, in order, without the surrounding quotes.
+     *         Empty if there are none.
+     */
     public List<String> getArgumentsInsideDoubleQuotes(String[] args) {
         List<String> results = new ArrayList<>();
         if (args == null || args.length == 0) {
