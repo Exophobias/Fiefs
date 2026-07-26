@@ -87,8 +87,20 @@ jobs:
           fi
           echo "No conflict markers."
 
-      - name: Build
+      - name: Build and test
         run: mvn -B --no-transfer-progress verify
+
+      # MockBukkit reports un-mocked API as *skipped* rather than failed, so a green build can hide
+      # tests that silently stopped exercising anything. Treat any skip as a failure.
+      - name: Fail on skipped tests
+        run: |
+          skipped=$(grep -ho 'skipped="[0-9]*"' target/surefire-reports/*.xml 2>/dev/null \
+            | grep -o '[0-9]*' | paste -sd+ - | bc 2>/dev/null || echo 0)
+          echo "Skipped tests: ${skipped:-0}"
+          if [ "${skipped:-0}" -ne 0 ]; then
+            echo "::error::${skipped} test(s) were skipped; skipped tests are treated as failures here."
+            exit 1
+          fi
 
       - name: Verify the jar declares a main class that exists inside it
         run: |
