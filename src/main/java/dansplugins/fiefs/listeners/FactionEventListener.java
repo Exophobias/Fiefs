@@ -6,6 +6,7 @@ import com.dansplugins.factionsystem.api.event.FactionUnclaimedChunkEvent;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.SuccessionService;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.event.EventHandler;
@@ -28,9 +29,11 @@ import java.util.UUID;
  */
 public class FactionEventListener implements Listener {
     private final PersistentData persistentData;
+    private final SuccessionService successionService;
 
-    public FactionEventListener(PersistentData persistentData) {
+    public FactionEventListener(PersistentData persistentData, SuccessionService successionService) {
         this.persistentData = persistentData;
+        this.successionService = successionService;
     }
 
     // Faction renames need no handling: fiefs store the faction id, which is stable across renames.
@@ -59,16 +62,27 @@ public class FactionEventListener implements Listener {
     /**
      * Covers voluntary leaves and kicks alike — the API deliberately emits one event per departure,
      * where MF internally fires both a kick event and a leave event for a single kick.
+     *
+     * <p>Leaving the faction is a departure in the succession sense, so a holder who walks away from
+     * the faction loses the fief to their heir, to its longest-standing member, or back to the faction
+     * itself. It cannot stay with them: a fief is held from the faction, and they are no longer of it.
      */
     @EventHandler
     public void handle(FactionMemberLeftEvent event) {
         UUID playerId = event.getPlayerId();
         Fief fief = persistentData.getFief(playerId);
-        if (fief != null) {
-            fief.removeMember(playerId);
-            persistentData.markDirty();
-            // TODO: inform fief members that the player left the faction
+        if (fief == null) {
+            return;
         }
+
+        if (fief.isOwner(playerId)) {
+            successionService.succeedFrom(fief, playerId);
+            return;
+        }
+
+        fief.removeMember(playerId);
+        persistentData.markDirty();
+        // TODO: inform fief members that the player left the faction
     }
 
     @EventHandler

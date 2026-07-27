@@ -199,7 +199,15 @@ public class PersistentData {
         player.sendMessage(Component.text("=== " + playersFief.getName() + " Fief Info ===", NamedTextColor.AQUA));
         player.sendMessage(Component.text("Name: " + playersFief.getName(), NamedTextColor.AQUA));
         player.sendMessage(Component.text("Faction: " + getFactionNameOfFief(playersFief), NamedTextColor.AQUA));
-        player.sendMessage(Component.text("Owner: " + uuidChecker.findPlayerNameBasedOnUUID(playersFief.getOwnerUUID()), NamedTextColor.AQUA));
+        // A vacant fief has no holder to name; say who does hold it instead of printing "null".
+        String holder = playersFief.isVacant()
+                ? getFactionNameOfFief(playersFief) + " (vacant)"
+                : uuidChecker.findPlayerNameBasedOnUUID(playersFief.getOwnerUUID());
+        player.sendMessage(Component.text("Owner: " + holder, NamedTextColor.AQUA));
+        if (playersFief.getHeirUUID() != null) {
+            player.sendMessage(Component.text("Heir: "
+                    + uuidChecker.findPlayerNameBasedOnUUID(playersFief.getHeirUUID()), NamedTextColor.AQUA));
+        }
         player.sendMessage(Component.text("Members: " + playersFief.getNumMembers(), NamedTextColor.AQUA));
         player.sendMessage(Component.text("Power Level: " + cumulativePowerLevel, NamedTextColor.AQUA));
         player.sendMessage(Component.text("Demesne Size: " + getNumChunksClaimedByFief(playersFief) + "/" + cumulativePowerLevel, NamedTextColor.AQUA));

@@ -44,7 +44,7 @@ public class DisbandCommand extends FiefsCommand {
             return false;
         }
 
-        if (!fief.getOwnerUUID().equals(player.getUniqueId())) {
+        if (!fief.isOwner(player.getUniqueId())) {
             player.sendMessage(Component.text("You must be the owner of your fief to disband it.", NamedTextColor.RED));
             return false;
         }

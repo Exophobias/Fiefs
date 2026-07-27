@@ -45,6 +45,17 @@ permissions:
     default: true
   fiefs.transfer:
     default: true
+  # Naming an heir is the fief holder's own business, so it is open like the rest of the fief
+  # commands; the command itself checks that the caller actually holds the fief.
+  fiefs.heir:
+    default: true
+  # Granting and revoking are checked against the faction's recorded head at execution time, so
+  # these stay default-true like every other fief command rather than being op-gated. The permission
+  # exists so a server can take the capability away, not to decide who is head of a faction.
+  fiefs.grant:
+    default: true
+  fiefs.revoke:
+    default: true
   fiefs.rename:
     default: true
   fiefs.flags:

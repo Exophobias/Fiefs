@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -26,7 +27,30 @@ public class Fief {
 
     private String name;
     private String description = "Default Description";
+
+    /**
+     * The player who holds this fief, or null while it is held directly by the parent faction.
+     *
+     * <p><b>Nullable, deliberately.</b> A fief is held FROM its faction, not owned outright, so
+     * "nobody holds it at present" is a real and correct state rather than an error: it is where a
+     * fief lands when its holder departs and there is no one left to inherit. The faction's own head
+     * regrants it from there. See {@code SuccessionService}.
+     *
+     * <p>Ask {@link #isOwner(UUID)} rather than comparing this field, or a vacant fief will throw on
+     * every ownership check.
+     */
     private UUID ownerUUID;
+
+    /**
+     * The player the current holder has named to inherit, or null if none is named.
+     *
+     * <p>A nomination, not an office: an heir holds nothing at all until they actually inherit, and
+     * the nomination is dropped the moment it is used or stops being true. It is cleared whenever the
+     * fief changes hands, so it always belongs to the holder who set it and never carries over to
+     * their successor.
+     */
+    private UUID heirUUID;
+
     private String factionId;
     private ArrayList<UUID> members = new ArrayList<>();
     private final FiefFlags flags;
@@ -67,12 +91,37 @@ public class Fief {
         this.description = description;
     }
 
+    /** @return the holder, or null if the fief is currently held by the faction. See {@link #ownerUUID}. */
     public UUID getOwnerUUID() {
         return ownerUUID;
     }
 
+    /** @param ownerUUID the new holder, or null to leave the fief in the faction's hands. */
     public void setOwnerUUID(UUID ownerUUID) {
         this.ownerUUID = ownerUUID;
+    }
+
+    /**
+     * Whether the given player holds this fief. Null-safe in both directions, which is why every
+     * ownership check goes through it rather than through {@code getOwnerUUID().equals(...)}.
+     */
+    public boolean isOwner(UUID playerUUID) {
+        return ownerUUID != null && ownerUUID.equals(playerUUID);
+    }
+
+    /** Whether nobody holds this fief, i.e. it has reverted to the faction and awaits a regrant. */
+    public boolean isVacant() {
+        return ownerUUID == null;
+    }
+
+    /** @return the named heir, or null if none is named. See {@link #heirUUID}. */
+    public UUID getHeirUUID() {
+        return heirUUID;
+    }
+
+    /** @param heirUUID the player to inherit this fief, or null to withdraw the nomination. */
+    public void setHeirUUID(UUID heirUUID) {
+        this.heirUUID = heirUUID;
     }
 
     public String getFactionId() {
@@ -85,9 +134,19 @@ public class Fief {
         }
     }
 
+    /**
+     * Removes a member, and withdraws their heir nomination with it.
+     *
+     * <p>The nomination has to go here rather than at each of the four call sites that can remove a
+     * member (/fi kick, /fi leave, leaving the faction, succession), because an heir who is no longer
+     * of the fief must not inherit it and a stale nomination is invisible to the holder.
+     */
     public void removeMember(UUID playerUUID) {
         if (isMember(playerUUID)) {
             members.remove(playerUUID);
+        }
+        if (playerUUID.equals(heirUUID)) {
+            heirUUID = null;
         }
     }
 
@@ -152,7 +211,9 @@ public class Fief {
      * select it -- change one of those to Object and the semantics silently flip to identity.
      */
     public boolean isSameFief(Fief fief) {
-        return fief.getOwnerUUID().equals(this.getOwnerUUID())
+        // Objects.equals on the holder: it is nullable now, and a vacant fief must compare equal to
+        // itself rather than throwing inside territory-protection checks.
+        return Objects.equals(fief.getOwnerUUID(), this.getOwnerUUID())
                 && fief.getName().equals(this.getName())
                 && fief.getFactionId().equals(this.getFactionId());
     }
@@ -163,7 +224,10 @@ public class Fief {
         Map<String, String> saveMap = new HashMap<>();
         saveMap.put("name", gson.toJson(name));
         saveMap.put("description", gson.toJson(description));
+        // Both of these are nullable, and Gson writes null as the JSON literal null, which reads back
+        // as a Java null. Anything already on disk predates them and simply has no key.
         saveMap.put("ownerUUID", gson.toJson(ownerUUID));
+        saveMap.put("heirUUID", gson.toJson(heirUUID));
         saveMap.put("factionId", gson.toJson(factionId));
         saveMap.put("members", gson.toJson(members));
 
@@ -186,7 +250,8 @@ public class Fief {
 
         name = gson.fromJson(data.get("name"), String.class);
         description = gson.fromJson(data.get("description"), String.class);
-        ownerUUID = UUID.fromString(gson.fromJson(data.get("ownerUUID"), String.class));
+        ownerUUID = readUUID(gson, data.get("ownerUUID"));
+        heirUUID = readUUID(gson, data.get("heirUUID"));
         factionId = gson.fromJson(data.get("factionId"), String.class);
 
         members = gson.fromJson(data.get("members"), arrayListTypeUUID);
@@ -197,5 +262,20 @@ public class Fief {
         flags.setStringValues(gson.fromJson(data.getOrDefault("stringFlagValues", "[]"), stringToStringMapType));
 
         flags.loadMissingFlagsIfNecessary();
+    }
+
+    /**
+     * Reads an optional stored UUID.
+     *
+     * <p>Returns null both for a key that is absent (a save file written before the field existed)
+     * and for one stored as JSON null (a vacant fief, or no named heir). The previous code called
+     * {@code UUID.fromString} on the result unconditionally, which throws a NullPointerException on
+     * either - and it throws out of {@code StorageService.loadFiefs()}, so one such fief would stop
+     * the whole plugin enabling.
+     */
+    private static UUID readUUID(Gson gson, String json) {
+        // Gson answers null for both cases, so one branch covers them.
+        String value = gson.fromJson(json, String.class);
+        return value == null ? null : UUID.fromString(value);
     }
 }

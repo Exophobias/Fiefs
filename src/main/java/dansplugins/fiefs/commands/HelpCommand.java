@@ -12,7 +12,7 @@ import java.util.Arrays;
  * @author Daniel McCoy Stephenson
  */
 public class HelpCommand extends FiefsCommand {
-    private final int maxPage = 2;
+    private final int maxPage = 3;
 
     public HelpCommand() {
         super(new ArrayList<>(Arrays.asList("help")), new ArrayList<>(Arrays.asList("fiefs.help")));
@@ -38,6 +38,9 @@ public class HelpCommand extends FiefsCommand {
             case "2":
                 sendPageTwo(sender);
                 break;
+            case "3":
+                sendPageThree(sender);
+                break;
             default:
                 sendUsageMessage(sender);
                 return false;
@@ -46,7 +49,7 @@ public class HelpCommand extends FiefsCommand {
     }
 
     private void sendUsageMessage(CommandSender sender) {
-        sender.sendMessage(Component.text("Usage: /fi help { 1 | 2 }", NamedTextColor.RED));
+        sender.sendMessage(Component.text("Usage: /fi help { 1 | 2 | 3 }", NamedTextColor.RED));
     }
 
     private void sendPageOne(CommandSender sender) {
@@ -73,6 +76,13 @@ public class HelpCommand extends FiefsCommand {
         sender.sendMessage(Component.text("/fi transfer - Transfer your fief to another player.", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi flags - View and alter your fief's configuration.", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi config - View and alter this plugin's config options.", NamedTextColor.AQUA));
+    }
+
+    private void sendPageThree(CommandSender sender) {
+        sender.sendMessage(Component.text("=== Fiefs Commands Page 3/" + maxPage + "===", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi heir - Name who inherits your fief if you depart.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi grant - Grant one of your faction's fiefs to a member. Head of the faction only.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi revoke - Take one of your faction's fiefs back. Head of the faction only.", NamedTextColor.AQUA));
     }
 
 }

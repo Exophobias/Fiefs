@@ -53,7 +53,7 @@ public class TransferCommand extends FiefsCommand {
             return false;
         }
 
-        if (!playersFief.getOwnerUUID().equals(player.getUniqueId())) {
+        if (!playersFief.isOwner(player.getUniqueId())) {
             player.sendMessage(Component.text("You must be the owner of your fief to transfer it.", NamedTextColor.RED));
             return false;
         }
@@ -78,6 +78,9 @@ public class TransferCommand extends FiefsCommand {
         }
 
         playersFief.setOwnerUUID(targetUUID);
+        // The heir was the OUTGOING holder's nomination. Carrying it over would let a holder who left
+        // years ago decide who inherits from a successor they never met; the new holder names theirs.
+        playersFief.setHeirUUID(null);
 
         persistentData.markDirty();
         player.sendMessage(Component.text("Transferred.", NamedTextColor.GREEN));

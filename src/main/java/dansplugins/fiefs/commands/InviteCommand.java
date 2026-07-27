@@ -53,7 +53,7 @@ public class InviteCommand extends FiefsCommand {
             return false;
         }
 
-        if (!playersFief.getOwnerUUID().equals(player.getUniqueId())) {
+        if (!playersFief.isOwner(player.getUniqueId())) {
             player.sendMessage(Component.text("You must be the owner of your fief to invite others.", NamedTextColor.RED));
             return false;
         }

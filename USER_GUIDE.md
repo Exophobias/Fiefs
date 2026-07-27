@@ -22,6 +22,17 @@ Fiefs is a Spigot plugin that adds a sub-faction territory system to Medieval Fa
 4. Check fief ownership of a chunk: `/fi checkclaim`
 5. View all fiefs in your faction: `/fi list`
 
+## Holding a fief
+
+A fief is held **from** your faction rather than owned outright, so it outlives whoever holds it.
+Name an heir with `/fi heir <player>` and they take the fief if you depart. Without an heir it goes
+to the fief's longest-standing member, and if there is nobody left it reverts to the faction, keeping
+its name, land and members until the head of the faction grants it again with
+`/fi grant "<fief>" <player>`. Somebody who has left the faction cannot inherit a fief held from it.
+
+The head of the faction may also take a fief back with `/fi revoke "<fief>"`. That leaves the fief
+standing and only removes its holder; use `/fi disband` if the intent really is to destroy it.
+
 ## Permissions
 
 | Permission | Default | Description |
@@ -37,6 +48,9 @@ Fiefs is a Spigot plugin that adds a sub-faction territory system to Medieval Fa
 | `fiefs.invite` | `true` | Invite a player to a fief. |
 | `fiefs.kick` | `true` | Kick a player from a fief. |
 | `fiefs.transfer` | `true` | Transfer fief ownership. |
+| `fiefs.heir` | `true` | Name who inherits your fief if you depart. |
+| `fiefs.grant` | `true` | Grant one of your faction's fiefs. Checked against the head of the faction at execution. |
+| `fiefs.revoke` | `true` | Take one of your faction's fiefs back. Checked against the head of the faction at execution. |
 | `fiefs.desc` | `true` | Set a fief description. |
 | `fiefs.rename` | `true` | Rename a fief. |
 | `fiefs.claim` | `true` | Claim a chunk for a fief. |

@@ -4,6 +4,8 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.SuccessionService;
+import dansplugins.fiefs.utils.UUIDChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
@@ -19,11 +21,14 @@ import java.util.Arrays;
 public class LeaveCommand extends FiefsCommand {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
     private final PersistentData persistentData;
+    private final SuccessionService successionService;
 
-    public LeaveCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData) {
+    public LeaveCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData,
+                        SuccessionService successionService) {
         super(new ArrayList<>(Arrays.asList("leave")), new ArrayList<>(Arrays.asList("fiefs.leave")));
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
         this.persistentData = persistentData;
+        this.successionService = successionService;
     }
 
     public boolean execute(CommandSender sender) {
@@ -45,9 +50,21 @@ public class LeaveCommand extends FiefsCommand {
             return false;
         }
 
-        if (fief.getOwnerUUID().equals(player.getUniqueId())) {
-            persistentData.removeFief(fief);
-            player.sendMessage(Component.text("Left. Your fief was disbanded since you were the owner.", NamedTextColor.GREEN));
+        // A holder walking away is a succession, not a demolition. This used to disband the fief
+        // outright, which destroyed its land, its members' home and its name because one player left,
+        // and it made /fi leave a way for a holder to take a settlement down with them. The fief now
+        // passes to the heir, then to the longest-standing member, and only reverts to the faction if
+        // there is genuinely nobody left.
+        if (fief.isOwner(player.getUniqueId())) {
+            SuccessionService.Succession succession = successionService.succeedFrom(fief, player.getUniqueId());
+            if (succession.reverted()) {
+                player.sendMessage(Component.text("Left. " + fief.getName() + " has reverted to "
+                        + persistentData.getFactionNameOfFief(fief) + ".", NamedTextColor.GREEN));
+            } else {
+                player.sendMessage(Component.text("Left. " + fief.getName() + " has passed to "
+                        + new UUIDChecker().findPlayerNameBasedOnUUID(succession.newOwnerId()) + ".",
+                        NamedTextColor.GREEN));
+            }
             return true;
         }
 

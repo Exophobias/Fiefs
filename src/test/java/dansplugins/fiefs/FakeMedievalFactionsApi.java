@@ -36,14 +36,36 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
 
     // --- test setup helpers ---
 
+    /**
+     * Creates a faction whose head is its FIRST member, matching MF, where the founder becomes the
+     * recorded primary owner.
+     */
     public FactionId createFaction(String id, String name, UUID... members) {
         FakeFaction faction = new FakeFaction(new FactionId(id), name);
         for (UUID member : members) {
             faction.memberIds.add(member);
             factionIdByPlayer.put(member, id);
         }
+        faction.primaryOwnerId = members.length > 0 ? members[0] : null;
         factionsById.put(id, faction);
         return faction.id;
+    }
+
+    /** Removes a member, as MF would after /f leave or /f kick. Does not fire the API event. */
+    public void removeFactionMember(String factionId, UUID playerId) {
+        FakeFaction faction = factionsById.get(factionId);
+        if (faction != null) {
+            faction.memberIds.remove(playerId);
+        }
+        factionIdByPlayer.remove(playerId);
+    }
+
+    /** Sets the faction's recorded head, or clears it with null. */
+    public void setPrimaryOwner(String factionId, UUID playerId) {
+        FakeFaction faction = factionsById.get(factionId);
+        if (faction != null) {
+            faction.primaryOwnerId = playerId;
+        }
     }
 
     /** Marks a chunk as claimed by a faction, as MF would after /f claim. */
@@ -156,10 +178,19 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
 
     // --- view types ---
 
+    /**
+     * Note that primaryOwnerId, isLeader and leaderIds are implemented explicitly even though
+     * FactionView declares Kotlin defaults for all three. Those defaults do NOT reach a Java
+     * implementer: Medieval Factions compiles without {@code -Xjvm-default=all}, so the bodies live in
+     * a synthetic DefaultImpls class and the interface methods are plain abstract ones on the JVM. An
+     * "additive" member added on the MF side is therefore a source-breaking change for every Java
+     * consumer, and this fake stopped compiling when the primary-owner work landed.
+     */
     private static class FakeFaction implements FactionView {
         private final FactionId id;
         private final String name;
         private final List<UUID> memberIds = new ArrayList<>();
+        private UUID primaryOwnerId;
 
         FakeFaction(FactionId id, String name) {
             this.id = id;
@@ -175,6 +206,15 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public @NotNull List<FactionId> getFactionsAtWarWith() { return new ArrayList<>(); }
         @Override public boolean isAtWarWith(@NotNull FactionId other) { return false; }
         @Override public @Nullable FactionRoleView roleOf(@NotNull UUID playerId) { return null; }
+        @Override public @Nullable UUID getPrimaryOwnerId() { return primaryOwnerId; }
+
+        // No roles are modelled, so capability is derived from the recorded head rather than from
+        // FactionPermission.DISBAND. Fiefs asks only the identity question; if it ever asks the
+        // capability one, this needs real roles behind it.
+        @Override public boolean isLeader(@NotNull UUID playerId) { return playerId.equals(primaryOwnerId); }
+        @Override public @NotNull List<UUID> getLeaderIds() {
+            return primaryOwnerId == null ? new ArrayList<>() : new ArrayList<>(List.of(primaryOwnerId));
+        }
     }
 
     private record FakeClaim(UUID worldId, int chunkX, int chunkZ, FactionId factionId) implements ClaimView {
