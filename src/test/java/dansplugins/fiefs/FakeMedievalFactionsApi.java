@@ -3,6 +3,7 @@ package dansplugins.fiefs;
 import com.dansplugins.factionsystem.api.ApiResult;
 import com.dansplugins.factionsystem.api.ClaimOverrideProvider;
 import com.dansplugins.factionsystem.api.ClaimView;
+import com.dansplugins.factionsystem.api.FactionHierarchyView;
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionRoleView;
 import com.dansplugins.factionsystem.api.FactionView;
@@ -207,6 +208,14 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public boolean isAtWarWith(@NotNull FactionId other) { return false; }
         @Override public @Nullable FactionRoleView roleOf(@NotNull UUID playerId) { return null; }
         @Override public @Nullable UUID getPrimaryOwnerId() { return primaryOwnerId; }
+
+        // Added when the bank's rank gate landed on the MF side, and the fourth time an "additive"
+        // MF member has broken this fake. Fiefs asks nothing about vassalage, so INDEPENDENT is the
+        // honest answer rather than a stub: a fief's holder is a member of one faction and the
+        // hierarchy above it is not this plugin's business.
+        @Override public @NotNull FactionHierarchyView getHierarchy() {
+            return FactionHierarchyView.INDEPENDENT;
+        }
 
         // No roles are modelled, so capability is derived from the recorded head rather than from
         // FactionPermission.DISBAND. Fiefs asks only the identity question; if it ever asks the
