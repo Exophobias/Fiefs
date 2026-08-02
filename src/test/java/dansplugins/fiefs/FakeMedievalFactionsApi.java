@@ -1,5 +1,6 @@
 package dansplugins.fiefs;
 
+import com.dansplugins.factionsystem.api.ApiOutcome;
 import com.dansplugins.factionsystem.api.ApiResult;
 import com.dansplugins.factionsystem.api.ClaimOverrideProvider;
 import com.dansplugins.factionsystem.api.ClaimView;
@@ -8,6 +9,7 @@ import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionRoleView;
 import com.dansplugins.factionsystem.api.FactionView;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
+import com.dansplugins.factionsystem.api.SuccessionPolicy;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -177,6 +180,74 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return claimOverrideProviders;
     }
 
+    // --- succession, and the political writes ---
+    //
+    // Fiefs uses none of these. They are here because MedievalFactionsApi declares them and a Java
+    // implementer must override every member, defaulted or not -- see the note on FakeFaction below
+    // for why a Kotlin default does not reach one. Answering rather than throwing, deliberately: a
+    // throw would turn "Fiefs never calls this" into a test failure the day something in Fiefs
+    // legitimately starts to, and these are all no-ops against a fake with no faction graph to move.
+
+    private final List<SuccessionPolicy> successionPolicies = new ArrayList<>();
+
+    @Override
+    public void registerSuccessionPolicy(@NotNull SuccessionPolicy policy) {
+        if (!successionPolicies.contains(policy)) {
+            successionPolicies.add(policy);
+        }
+    }
+
+    @Override
+    public void unregisterSuccessionPolicy(@NotNull SuccessionPolicy policy) {
+        successionPolicies.remove(policy);
+    }
+
+    @Override
+    public @NotNull ApiResult setPrimaryOwner(@NotNull FactionId faction, @NotNull UUID playerId) {
+        FakeFaction target = factionsById.get(faction.getValue());
+        if (target == null) {
+            return ApiResult.failure("No faction with id " + faction.getValue());
+        }
+        target.primaryOwnerId = playerId;
+        return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiOutcome<FactionId> createFaction(@NotNull String name, @NotNull UUID founderId) {
+        return ApiOutcome.failure("This fake does not found factions");
+    }
+
+    @Override
+    public @NotNull ApiResult disbandFaction(@NotNull FactionId faction) {
+        return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiResult transferMembers(@NotNull FactionId from, @NotNull FactionId to,
+                                              @NotNull Collection<UUID> playerIds) {
+        return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiOutcome<Integer> transferAllClaims(@NotNull FactionId from, @NotNull FactionId to) {
+        return ApiOutcome.success(0);
+    }
+
+    @Override
+    public @NotNull ApiResult renounceLiege(@NotNull FactionId vassal) {
+        return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiResult swearFealty(@NotNull FactionId vassal, @NotNull FactionId liege) {
+        return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiResult declareWar(@NotNull FactionId faction, @NotNull FactionId otherFaction) {
+        return ApiResult.success();
+    }
+
     // --- view types ---
 
     /**
@@ -208,6 +279,8 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public boolean isAtWarWith(@NotNull FactionId other) { return false; }
         @Override public @Nullable FactionRoleView roleOf(@NotNull UUID playerId) { return null; }
         @Override public @Nullable UUID getPrimaryOwnerId() { return primaryOwnerId; }
+        // A nomination, which this fake never sets: Fiefs has its own heir and reads none of MF's.
+        @Override public @Nullable UUID getHeirId() { return null; }
 
         // Added when the bank's rank gate landed on the MF side, and the fourth time an "additive"
         // MF member has broken this fake. Fiefs asks nothing about vassalage, so INDEPENDENT is the

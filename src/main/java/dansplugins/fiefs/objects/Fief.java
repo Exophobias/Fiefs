@@ -56,11 +56,44 @@ public class Fief {
     private final FiefFlags flags;
     private final ArrayList<UUID> invitedPlayers = new ArrayList<>();
 
+    /**
+     * The chunk this fief's capital stands in, or null while it has none.
+     *
+     * <p>A fief had no seat at all. A realm has one -- Medieval Factions calls it the home -- and
+     * anything that has to name "the place a side must hold" needs the fief to have one too. That is
+     * the whole reason this exists, and it is why a fief with no capital is refused a rising rather
+     * than being given one the plugin picked: a capital chosen by a tie-break is chosen by whoever
+     * wrote the tie-break, not by the player whose holding it is.
+     *
+     * <p>Stored as a world NAME and two chunk coordinates, matching {@code ClaimedChunk} and for the
+     * same reason it does: holding a live {@code Chunk} means loading, and possibly generating, the
+     * chunk merely to read where the capital is.
+     */
+    private String capitalWorld;
+    private int capitalX;
+    private int capitalZ;
+
+    /**
+     * When the current holder came to hold this fief, as epoch milliseconds.
+     *
+     * <p>Recorded so that "how long have you held this" can be answered, which a rebellion's tenure
+     * gate needs: joining a realm, being granted a fief and taking the realm's land must not be able
+     * to happen on one day.
+     *
+     * <p><b>Zero for a fief saved before this field existed</b>, which reads as "held since the
+     * epoch" and so passes every tenure gate. That is the correct direction rather than a gap: those
+     * holders genuinely have held their fiefs since before anybody was counting, and defaulting to
+     * "held as of the upgrade" would silently freeze every existing fief out of the mechanic for its
+     * first week.
+     */
+    private long heldSince;
+
     public Fief(MedievalFactionsIntegrator medievalFactionsIntegrator, String name, UUID ownerUUID, String factionId, Logger logger) {
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
         this.name = name;
         this.ownerUUID = ownerUUID;
         this.factionId = factionId;
+        this.heldSince = System.currentTimeMillis();
         members.add(ownerUUID);
         flags = new FiefFlags(logger);
         flags.initializeFlagValues();
@@ -96,9 +129,25 @@ public class Fief {
         return ownerUUID;
     }
 
-    /** @param ownerUUID the new holder, or null to leave the fief in the faction's hands. */
+    /**
+     * @param ownerUUID the new holder, or null to leave the fief in the faction's hands.
+     *
+     * <p>Stamps {@link #heldSince}, so tenure is measured from the moment this holder came to it and
+     * never from the fief's own founding. Without that, granting a fief to somebody would hand them
+     * the previous holder's standing along with it, and a realm could arm a newcomer against itself
+     * by regranting an old fief to them.
+     *
+     * <p>Stamped for a vacancy too. A fief nobody holds accrues no tenure worth keeping, and
+     * measuring from the regrant is the honest reading either way.
+     */
     public void setOwnerUUID(UUID ownerUUID) {
         this.ownerUUID = ownerUUID;
+        this.heldSince = System.currentTimeMillis();
+    }
+
+    /** When the current holder came to hold this. See {@link #heldSince}. */
+    public long getHeldSince() {
+        return heldSince;
     }
 
     /**
@@ -126,6 +175,59 @@ public class Fief {
 
     public String getFactionId() {
         return factionId;
+    }
+
+    // ---- the capital ------------------------------------------------------
+
+    /** Whether this fief has named a capital. See {@link #capitalWorld}. */
+    public boolean hasCapital() {
+        return capitalWorld != null;
+    }
+
+    /** The capital's world name, or null if none is named. */
+    public String getCapitalWorld() {
+        return capitalWorld;
+    }
+
+    /** The capital's chunk X. Meaningless unless {@link #hasCapital()}. */
+    public int getCapitalX() {
+        return capitalX;
+    }
+
+    /** The capital's chunk Z. Meaningless unless {@link #hasCapital()}. */
+    public int getCapitalZ() {
+        return capitalZ;
+    }
+
+    /**
+     * Name where this fief's capital stands.
+     *
+     * <p>The caller is responsible for checking that the fief actually claims the chunk; this stores
+     * what it is told. {@code CapitalCommand} is the only thing that should be calling it, and it
+     * does check.
+     */
+    public void setCapital(String worldName, int chunkX, int chunkZ) {
+        this.capitalWorld = worldName;
+        this.capitalX = chunkX;
+        this.capitalZ = chunkZ;
+    }
+
+    /**
+     * Forget the capital, which is what unclaiming the chunk it stood in has to do.
+     *
+     * <p>A capital on land the fief no longer holds would be a fief that could not be attacked at
+     * its seat, and one that reads as defended by ground somebody else owns.
+     */
+    public void clearCapital() {
+        this.capitalWorld = null;
+        this.capitalX = 0;
+        this.capitalZ = 0;
+    }
+
+    /** Whether the capital stands in the given chunk. False when there is no capital at all. */
+    public boolean capitalIsAt(String worldName, int chunkX, int chunkZ) {
+        return capitalWorld != null && capitalWorld.equals(worldName)
+                && capitalX == chunkX && capitalZ == chunkZ;
     }
 
     public void addMember(UUID playerUUID) {
@@ -230,6 +332,13 @@ public class Fief {
         saveMap.put("heirUUID", gson.toJson(heirUUID));
         saveMap.put("factionId", gson.toJson(factionId));
         saveMap.put("members", gson.toJson(members));
+        // Nullable, like ownerUUID above: Gson writes null as the JSON literal, which reads back as
+        // a Java null and means "no capital named". Anything already on disk predates these keys and
+        // simply has none.
+        saveMap.put("capitalWorld", gson.toJson(capitalWorld));
+        saveMap.put("capitalX", gson.toJson(capitalX));
+        saveMap.put("capitalZ", gson.toJson(capitalZ));
+        saveMap.put("heldSince", gson.toJson(heldSince));
 
         saveMap.put("integerFlagValues", gson.toJson(flags.getIntegerValues()));
         saveMap.put("booleanFlagValues", gson.toJson(flags.getBooleanValues()));
@@ -255,6 +364,17 @@ public class Fief {
         factionId = gson.fromJson(data.get("factionId"), String.class);
 
         members = gson.fromJson(data.get("members"), arrayListTypeUUID);
+
+        // Absent for every fief saved before the capital existed, which reads back as null and means
+        // "no capital named". getOrDefault on the coordinates rather than a null check on each: a
+        // fief with a world and no coordinates is not a state this can produce, since setCapital
+        // writes all three.
+        capitalWorld = gson.fromJson(data.get("capitalWorld"), String.class);
+        capitalX = gson.fromJson(data.getOrDefault("capitalX", "0"), Integer.TYPE);
+        capitalZ = gson.fromJson(data.getOrDefault("capitalZ", "0"), Integer.TYPE);
+        // 0 for a fief saved before this existed, which reads as held since the epoch and so passes
+        // every tenure gate. See the field: that is deliberate, not a gap.
+        heldSince = gson.fromJson(data.getOrDefault("heldSince", "0"), Long.TYPE);
 
         flags.setIntegerValues(gson.fromJson(data.getOrDefault("integerFlagValues", "[]"), stringToIntegerMapType));
         flags.setBooleanValues(gson.fromJson(data.getOrDefault("booleanFlagValues", "[]"), stringToBooleanMapType));

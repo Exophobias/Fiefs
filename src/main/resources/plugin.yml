@@ -49,6 +49,11 @@ permissions:
   # commands; the command itself checks that the caller actually holds the fief.
   fiefs.heir:
     default: true
+  # A fief's capital is the ground a rising is won and lost on, and naming it is the holder's own
+  # business like every other fief command. The command checks that the caller holds the fief and
+  # that the fief actually claims the chunk they are standing in.
+  fiefs.capital:
+    default: true
   # Granting and revoking are checked against the faction's recorded head at execution time, so
   # these stay default-true like every other fief command rather than being op-gated. The permission
   # exists so a server can take the capability away, not to decide who is head of a faction.

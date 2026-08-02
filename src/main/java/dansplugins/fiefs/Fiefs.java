@@ -189,6 +189,7 @@ public class Fiefs extends JavaPlugin {
      */
     private void initializeCommandService() {
         ArrayList<FiefsCommand> commands = new ArrayList<FiefsCommand>(Arrays.asList(
+                new CapitalCommand(medievalFactionsIntegrator, persistentData),
                 new CheckClaimCommand(persistentData, chunkService),
                 new ClaimCommand(medievalFactionsIntegrator, persistentData, chunkService),
                 new ConfigCommand(configService),

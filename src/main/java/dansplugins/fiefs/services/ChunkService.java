@@ -85,6 +85,16 @@ public class ChunkService {
 
         // unclaim the chunk
         persistentData.removeChunk(claimedChunk);
+        // A capital standing on land the fief no longer holds would be a seat nobody can attack, and
+        // one defended by ground somebody else owns. Cleared here rather than checked at every read,
+        // because this is the only place a fief can lose a chunk it chose.
+        if (fief.capitalIsAt(chunk.getWorld().getName(), chunk.getX(), chunk.getZ())) {
+            fief.clearCapital();
+            persistentData.markDirty();
+            player.sendMessage(Component.text("That was your capital, so " + fief.getName()
+                    + " no longer has one. Name another with /fi capital, or it cannot be risen "
+                    + "with.", NamedTextColor.YELLOW));
+        }
         player.sendMessage(Component.text("Unclaimed.", NamedTextColor.GREEN));
         return true;
     }
