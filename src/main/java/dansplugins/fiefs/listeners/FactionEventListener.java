@@ -54,8 +54,25 @@ public class FactionEventListener implements Listener {
             }
         }
 
-        if (toRemove != null) {
-            persistentData.removeChunk(toRemove);
+        if (toRemove == null) {
+            return;
+        }
+        persistentData.removeChunk(toRemove);
+
+        // The capital has to go with the ground, and it did not. ChunkService clears it when a
+        // holder types /fi unclaim, and its comment claimed that was "the only place a fief can lose
+        // a chunk it chose" -- which was never true. Medieval Factions unclaiming the chunk
+        // underneath, by /f unclaim, a disband, or a conquest, arrives here instead, and left a
+        // capital pointing at ground the fief no longer holds.
+        //
+        // That is not cosmetic. A fief's capital is what a rising is won and lost on, so a phantom
+        // one standing in wilderness hands the loyalist side an instant win: the chunk is not owned
+        // by the rebels, so it reads as taken the moment anybody claims it -- or, under a rule that
+        // asks who owns it, is already not theirs.
+        Fief owner = persistentData.getFief(toRemove.getFief());
+        if (owner != null && owner.capitalIsAt(world.getName(), event.getChunkX(), event.getChunkZ())) {
+            owner.clearCapital();
+            persistentData.markDirty();
         }
     }
 

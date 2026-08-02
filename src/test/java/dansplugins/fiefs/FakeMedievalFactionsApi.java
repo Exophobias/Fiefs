@@ -149,6 +149,13 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return ApiResult.success();
     }
 
+    /** The positional write, which exists so a caller holding coordinates never loads a chunk. */
+    @Override
+    public @NotNull ApiResult claim(@NotNull FactionId faction, @NotNull UUID worldId, int chunkX, int chunkZ) {
+        factionIdByChunkKey.put(key(worldId, chunkX, chunkZ), faction.getValue());
+        return ApiResult.success();
+    }
+
     @Override
     public @NotNull ApiResult unclaim(@NotNull Chunk chunk) {
         factionIdByChunkKey.remove(key(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ()));
@@ -281,6 +288,8 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public @Nullable UUID getPrimaryOwnerId() { return primaryOwnerId; }
         // A nomination, which this fake never sets: Fiefs has its own heir and reads none of MF's.
         @Override public @Nullable UUID getHeirId() { return null; }
+        // Zero is what MF reports for a faction with no tenure record. Fiefs reads neither.
+        @Override public long getPrimaryOwnerSince() { return 0L; }
 
         // Added when the bank's rank gate landed on the MF side, and the fourth time an "additive"
         // MF member has broken this fake. Fiefs asks nothing about vassalage, so INDEPENDENT is the

@@ -86,8 +86,12 @@ public class ChunkService {
         // unclaim the chunk
         persistentData.removeChunk(claimedChunk);
         // A capital standing on land the fief no longer holds would be a seat nobody can attack, and
-        // one defended by ground somebody else owns. Cleared here rather than checked at every read,
-        // because this is the only place a fief can lose a chunk it chose.
+        // one defended by ground somebody else owns. Cleared here rather than checked at every read.
+        //
+        // NOT the only place this happens: Medieval Factions unclaiming the chunk underneath -- by
+        // /f unclaim, a disband, or a conquest -- reaches FactionEventListener instead, which clears
+        // it there for the same reason. An earlier version of this comment claimed otherwise and the
+        // other path had no clearing at all.
         if (fief.capitalIsAt(chunk.getWorld().getName(), chunk.getX(), chunk.getZ())) {
             fief.clearCapital();
             persistentData.markDirty();
