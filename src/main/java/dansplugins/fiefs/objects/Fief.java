@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * @author Daniel McCoy Stephenson
@@ -52,7 +53,16 @@ public class Fief {
     private UUID heirUUID;
 
     private String factionId;
-    private ArrayList<UUID> members = new ArrayList<>();
+    /**
+     * Everybody in the fief.
+     *
+     * <p>Copy-on-write for the reason {@code PersistentData}'s lists are: this is mutated on the
+     * main thread by {@code /fi join}, {@code /fi kick}, {@code /fi leave} and the faction listener,
+     * and read from another plugin's asynchronous sweep. A concurrent grow makes a defensive
+     * {@code new ArrayList<>(members)} pad with nulls, which silently inflates any count taken from
+     * it.
+     */
+    private List<UUID> members = new CopyOnWriteArrayList<>();
     private final FiefFlags flags;
     private final ArrayList<UUID> invitedPlayers = new ArrayList<>();
 
@@ -363,7 +373,8 @@ public class Fief {
         heirUUID = readUUID(gson, data.get("heirUUID"));
         factionId = gson.fromJson(data.get("factionId"), String.class);
 
-        members = gson.fromJson(data.get("members"), arrayListTypeUUID);
+        ArrayList<UUID> loaded = gson.fromJson(data.get("members"), arrayListTypeUUID);
+        members = loaded == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(loaded);
 
         // Absent for every fief saved before the capital existed, which reads back as null and means
         // "no capital named". getOrDefault on the coordinates rather than a null check on each: a

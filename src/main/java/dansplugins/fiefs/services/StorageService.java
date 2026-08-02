@@ -30,6 +30,15 @@ import java.util.Map;
 public class StorageService {
     private final ConfigService configService;
     private final Fiefs fiefs;
+
+    /**
+     * Rows that would not parse, held verbatim so a save does not delete them.
+     *
+     * <p>Not in {@code PersistentData}, deliberately: nothing else in the plugin should be able to
+     * see these or act on them. They are bytes waiting to be written back, not fiefs.
+     */
+    private final List<Map<String, String>> quarantinedFiefs = new ArrayList<>();
+    private final List<Map<String, String>> quarantinedChunks = new ArrayList<>();
     private final PersistentData persistentData;
     private final Logger logger;
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
@@ -92,6 +101,8 @@ public class StorageService {
         for (Fief fief : persistentData.getFiefs()){
             fiefs.add(fief.save());
         }
+        // Then whatever would not load, exactly as it was read. See loadFiefs.
+        fiefs.addAll(quarantinedFiefs);
 
         writeOutFiles(fiefs, FIEFS_FILE_NAME);
     }
@@ -102,6 +113,7 @@ public class StorageService {
         for (ClaimedChunk claimedChunk : persistentData.getClaimedChunks()){
             claimedChunks.add(claimedChunk.save());
         }
+        claimedChunks.addAll(quarantinedChunks);
 
         writeOutFiles(claimedChunks, CLAIMED_CHUNKS_FILE_NAME);
     }
@@ -136,26 +148,60 @@ public class StorageService {
         }
     }
 
+    /**
+     * Loads every fief, and quarantines the ones that will not parse rather than dying on them.
+     *
+     * <p>The file-level failure in {@link #loadDataFromFilename} refuses to enable, and that is right:
+     * an unreadable FILE means everything is unknown. A single unreadable ROW is a different thing --
+     * the other forty are sitting there perfectly readable, and taking the whole plugin down over one
+     * of them means one hand-edited entry costs the server every fief it has.
+     *
+     * <p>So a bad row is skipped, logged with its contents, and <b>kept</b>: it is written back out
+     * verbatim on the next save, so the plugin never silently deletes data it could not understand.
+     * It stays quarantined until somebody fixes or removes it, and it is logged every startup so that
+     * somebody knows to.
+     */
     private void loadFiefs() {
         persistentData.clearFiefs();
+        quarantinedFiefs.clear();
 
         ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(FIEFS_FILE_NAME));
 
         for (Map<String, String> fiefData : data){
-            Fief fief = new Fief(fiefData, medievalFactionsIntegrator, logger);
-            persistentData.addFief(fief);
+            try {
+                Fief fief = new Fief(fiefData, medievalFactionsIntegrator, logger);
+                persistentData.addFief(fief);
+            } catch (RuntimeException e) {
+                quarantine(quarantinedFiefs, fiefData, FIEFS_FILE_NAME, e);
+            }
         }
     }
 
     private void loadClaimedChunks() {
         persistentData.clearClaimedChunks();
+        quarantinedChunks.clear();
 
         ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(CLAIMED_CHUNKS_FILE_NAME));
 
         for (Map<String, String> claimedChunkData : data){
-            ClaimedChunk claimedChunk = new ClaimedChunk(claimedChunkData);
-            persistentData.addChunk(claimedChunk);
+            try {
+                ClaimedChunk claimedChunk = new ClaimedChunk(claimedChunkData);
+                persistentData.addChunk(claimedChunk);
+            } catch (RuntimeException e) {
+                quarantine(quarantinedChunks, claimedChunkData, CLAIMED_CHUNKS_FILE_NAME, e);
+            }
         }
+    }
+
+    /** Keep an unreadable row aside, and say so loudly enough that somebody fixes it. */
+    private void quarantine(List<Map<String, String>> held, Map<String, String> row,
+                            String fileName, RuntimeException cause) {
+        held.add(new HashMap<>(row));
+        String message = "[Fiefs] WARNING: one entry in " + fileName + " could not be read and has "
+                + "been skipped. It is kept and will be written back unchanged, so nothing is lost. "
+                + "Fix or remove it: " + row + " (" + cause + ")";
+        logger.log(message);
+        System.out.println(message);
     }
 
     /**
