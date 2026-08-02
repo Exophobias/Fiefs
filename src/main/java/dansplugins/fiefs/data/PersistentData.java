@@ -11,6 +11,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.UUID;
 
 /**
@@ -19,8 +21,25 @@ import java.util.UUID;
 public class PersistentData {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
 
-    private final ArrayList<Fief> fiefs = new ArrayList<>();
-    private final ArrayList<ClaimedChunk> claimedChunks = new ArrayList<>();
+    /**
+     * Every fief, and every chunk one holds.
+     *
+     * <p><b>CopyOnWriteArrayList, not ArrayList, and the reason is a reader in another plugin.</b>
+     * These are mutated on the main thread by commands and by the Medieval Factions event listeners,
+     * and PatriamMFAddon's rebellion layer reads them off it -- from a command thread when somebody
+     * asks what they could rise with, and from its asynchronous sweep when a war starts. A plain
+     * ArrayList iterated while another thread adds to it throws
+     * {@link java.util.ConcurrentModificationException} at best and returns a half-built list at
+     * worst.
+     *
+     * <p>Copy-on-write rather than synchronised because the ratio is right: these are read on
+     * movement, on interaction, on every territory check and now from another plugin, and written
+     * only when somebody claims, unclaims, founds or disbands. Writes copy the array, reads take no
+     * lock at all, and an iterator is a snapshot -- which is exactly the guarantee a cross-plugin
+     * reader needs and cannot arrange for itself.
+     */
+    private final List<Fief> fiefs = new CopyOnWriteArrayList<>();
+    private final List<ClaimedChunk> claimedChunks = new CopyOnWriteArrayList<>();
 
     /**
      * Whether in-memory state has diverged from disk, so the autosave can skip an idle server.
@@ -50,7 +69,15 @@ public class PersistentData {
         dirty = false;
     }
 
-    public ArrayList<Fief> getFiefs() {
+    /**
+     * Every fief.
+     *
+     * <p>{@link List} rather than {@code ArrayList} since the backing collection became
+     * copy-on-write. Callers iterate it; nothing needs the concrete type, and returning the
+     * interface is what lets the implementation carry a thread-safety guarantee a caller in another
+     * plugin depends on.
+     */
+    public List<Fief> getFiefs() {
         return fiefs;
     }
 
@@ -177,7 +204,8 @@ public class PersistentData {
         return claimedChunks.size();
     }
 
-    public ArrayList<ClaimedChunk> getClaimedChunks() {
+    /** Every claimed chunk. See {@link #getFiefs()} for why this is a {@link List}. */
+    public List<ClaimedChunk> getClaimedChunks() {
         return claimedChunks;
     }
 
