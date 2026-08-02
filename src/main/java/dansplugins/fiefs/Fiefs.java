@@ -19,6 +19,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -80,6 +81,15 @@ public class Fiefs extends JavaPlugin {
         registerEventHandlers();
         initializeCommandService();
         scheduler.scheduleAutosave();
+
+        // Published through the ServicesManager as well as through getAPI(), which is the route
+        // every other plugin on this server already uses for Medieval Factions and PatriamUtils.
+        // The difference is not style: getAPI() forces a consumer to hold this class, so a consumer
+        // that treats Fiefs as optional has to name a Fiefs type merely to ask whether Fiefs is
+        // there -- which is the linkage failure the guard classes on the other side exist to avoid.
+        // Registered AFTER the load, so nothing can read an empty store and cache the answer.
+        getServer().getServicesManager().register(
+                FiefsAPI.class, getAPI(), this, ServicePriority.Normal);
     }
 
     /**
