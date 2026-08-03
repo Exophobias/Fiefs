@@ -185,4 +185,47 @@
              remaining dependency is `provided`, so the jar contains this plugin's classes and nothing
              else. -->
     </build>
+
+    <profiles>
+        <!--
+          26.2 IS THE DEPLOYMENT TARGET. Patriam runs a stable 26.2, so this profile builds the jar
+          that ships:
+
+              .\mvnw.cmd "-Ppaper-26.2" clean package
+
+          api-version in plugin.yml is a FLOOR rather than a pin, so one jar is ELIGIBLE to load on
+          both 26.1.x and 26.2 - but eligibility is not compatibility. A method 26.2 removed is a
+          NoSuchMethodError at the first call site that reaches it, and plugin.yml cannot express
+          that. Compiling against the version actually deployed turns that class of failure into a
+          build error.
+
+          WHY THE DEFAULT IS STILL 26.1.2, WHICH LOOKS BACKWARDS AND IS NOT.
+          MockBukkit publishes mockbukkit-v26.1.2 and, as of 2026-08-02, no 26.2 artifact exists.
+          That is a limit of the TEST HARNESS, not a statement about what this plugin targets: a
+          26.1.2 server mock cannot stand up against a 26.2 api classpath, and the suite run that
+          way collapses into "Could not initialize class org.bukkit.Registry" errors that are the
+          harness failing rather than the plugin. Making 26.2 the default would trade a meaningful
+          green for a meaningless one.
+
+          So the default keeps `mvnw clean test` honest and this profile keeps the shipped jar
+          honest:
+
+              .\mvnw.cmd clean test                       correctness gate, 26.1.2, runs the suite
+              .\mvnw.cmd "-Ppaper-26.2" clean package     compatibility gate and the release jar
+
+          Test EXECUTION is skipped here for the reason above. Test SOURCES still compile, which is
+          where their value lies under this profile: after main, they are the largest body of api
+          calls in the repository.
+
+          Revisit the moment mockbukkit-v26.2 exists. At that point this profile becomes the
+          default, the suite runs under it, and 26.1.2 becomes the compile-only nice-to-have.
+        -->
+        <profile>
+            <id>paper-26.2</id>
+            <properties>
+                <paper.version>26.2.build.92-stable</paper.version>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+    </profiles>
 </project>
