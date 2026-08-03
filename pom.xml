@@ -8,7 +8,7 @@
     <artifactId>Fiefs</artifactId>
     <!-- Deliberately unchanged. Renaming the artifact would move the plugin's data directory
          (plugins/Fiefs/) and break anything declaring depend: [Fiefs]; the Medieval-Factions fork
-         set the same precedent by keeping com.dansplugins / 5.9.0-SNAPSHOT. -->
+         set the same precedent by keeping the com.dansplugins groupId. -->
     <version>0.11.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
@@ -39,7 +39,7 @@
 
              Build MF with JDK 17 (its Gradle 7.6.4 cannot run on JDK 25); the resulting Java 17
              bytecode runs fine on the Java 25 server. -->
-        <medievalfactions.version>5.9.0-SNAPSHOT</medievalfactions.version>
+        <medievalfactions.version>5.9.0-patriam.1-SNAPSHOT</medievalfactions.version>
 
         <!-- MockBukkit 4.114.0 requires JUnit 6, not 5. -->
         <junit.version>6.1.0</junit.version>
