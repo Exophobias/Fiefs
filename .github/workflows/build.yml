@@ -29,7 +29,10 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Exophobias/Medieval-Factions
-          ref: patriam/target-26.1.2
+          # main, not patriam/target-26.1.2. That branch stopped at Spigot 26.1.2 and still calls
+          # itself 5.9.0-SNAPSHOT, so it publishes an artifact the pin below cannot resolve.
+          # main contains every commit that branch had, plus the 26.2 target.
+          ref: main
           path: .mf-src
 
       # Medieval-Factions pins Gradle 7.6.4, which cannot run on JDK 21+. Its output is Java 17

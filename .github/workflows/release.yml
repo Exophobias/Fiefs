@@ -20,7 +20,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Exophobias/Medieval-Factions
-          ref: patriam/target-26.1.2
+          # Keep in step with build.yml: main is the only branch carrying 5.9.0-patriam.1-SNAPSHOT.
+          ref: main
           path: .mf-src
 
       # Gradle 7.6.4 cannot run on JDK 21+; installed first so JAVA_HOME_17_X64 exists below.
