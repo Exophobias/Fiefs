@@ -101,6 +101,11 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     }
 
     @Override
+    public @NotNull List<FactionView> getFactions() {
+        return new ArrayList<>(factionsById.values());
+    }
+
+    @Override
     public FactionView getFactionByPlayer(@NotNull UUID playerId) {
         String id = factionIdByPlayer.get(playerId);
         return id == null ? null : factionsById.get(id);
@@ -318,6 +323,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public @Nullable Location getHome() { return null; }
         @Override public @NotNull List<UUID> getMemberIds() { return memberIds; }
         @Override public int getClaimCount() { return 0; }
+        @Override public @NotNull String getColor() { return "#ffffff"; }
         @Override public @NotNull List<FactionId> getFactionsAtWarWith() { return new ArrayList<>(); }
         @Override public boolean isAtWarWith(@NotNull FactionId other) { return false; }
         @Override public @Nullable FactionRoleView roleOf(@NotNull UUID playerId) { return null; }
