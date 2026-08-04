@@ -10,6 +10,7 @@ import com.dansplugins.factionsystem.api.FactionRoleView;
 import com.dansplugins.factionsystem.api.FactionView;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import com.dansplugins.factionsystem.api.SuccessionPolicy;
+import com.dansplugins.factionsystem.api.geometry.ChunkPos;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -19,8 +20,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -131,6 +134,39 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     @Override
     public boolean isClaimed(@NotNull World world, int chunkX, int chunkZ) {
         return factionIdByChunkKey.containsKey(key(world.getUID(), chunkX, chunkZ));
+    }
+
+    /**
+     * The reverse index, built by scanning rather than maintained.
+     *
+     * <p>Real MF keeps a per-faction index because it answers this on a live server; a fake holding
+     * a handful of test claims does not need one, and a second index would be a second thing to keep
+     * in step with {@link #factionIdByChunkKey} for no benefit a test can observe.
+     */
+    @Override
+    public @NotNull Map<UUID, Set<ChunkPos>> getClaimedChunks(@NotNull FactionId faction) {
+        Map<UUID, Set<ChunkPos>> byWorld = new HashMap<>();
+        factionIdByChunkKey.forEach((chunkKey, owner) -> {
+            if (!owner.equals(faction.getValue())) {
+                return;
+            }
+            String[] parts = chunkKey.split(":");
+            byWorld.computeIfAbsent(UUID.fromString(parts[0]), w -> new HashSet<>())
+                    .add(new ChunkPos(Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
+        });
+        return byWorld;
+    }
+
+    @Override
+    public @NotNull Set<ChunkPos> getClaimedChunks(@NotNull FactionId faction, @NotNull UUID worldId) {
+        return getClaimedChunks(faction).getOrDefault(worldId, Set.of());
+    }
+
+    @Override
+    public int getClaimCount(@NotNull FactionId faction) {
+        return (int) factionIdByChunkKey.values().stream()
+                .filter(owner -> owner.equals(faction.getValue()))
+                .count();
     }
 
     @Override
