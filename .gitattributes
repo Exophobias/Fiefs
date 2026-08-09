@@ -1,0 +1,10 @@
+# libs/ is checksum-verified in CI, so every byte in it has to survive a checkout unchanged.
+#
+# core.autocrlf is true on the Windows machine this is developed on, which rewrites LF to CRLF on
+# checkout for anything Git considers text. patriamheraldry-api-1.0.0.pom and CHECKSUMS are text, so
+# without this they would hash one way on Linux CI and another in a fresh Windows clone, and
+# libs/CHECKSUMS could only ever match one of them. -text pins them to exactly the bytes committed.
+libs/** -text
+
+# Run by bash; CRLF line endings would break the shebang under WSL or Git Bash on a fresh clone.
+*.sh text eol=lf
