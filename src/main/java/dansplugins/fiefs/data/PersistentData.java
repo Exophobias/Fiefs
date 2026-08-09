@@ -90,6 +90,28 @@ public class PersistentData {
         return null;
     }
 
+    /**
+     * The fief with this stable id, or null.
+     *
+     * <p>Named differently from the three {@code getFief} overloads on purpose. Two of those already
+     * take a {@link UUID} and both mean a PLAYER's uuid, so an id lookup added as a fourth overload
+     * would be picked by the compiler and not by the caller: {@code getFief(someFiefId)} would resolve
+     * to "the fief this player is in", compile cleanly, and answer null for every fief on the server.
+     *
+     * @param fiefId the fief's own id, from {@link Fief#getId()}, not a player's
+     */
+    public Fief getFiefById(UUID fiefId) {
+        if (fiefId == null) {
+            return null;
+        }
+        for (Fief fief : fiefs) {
+            if (fiefId.equals(fief.getId())) {
+                return fief;
+            }
+        }
+        return null;
+    }
+
     public Fief getFief(Player player) {
         for (Fief fief : fiefs) {
             if (fief.isMember(player.getUniqueId())) {

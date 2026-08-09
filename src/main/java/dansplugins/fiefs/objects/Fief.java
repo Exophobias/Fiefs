@@ -26,6 +26,31 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class Fief {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
 
+    /**
+     * This fief's stable identity, which is not its name.
+     *
+     * <p>A fief had no id at all: it was found by name everywhere, and {@code /fi rename} changes the
+     * name. That is fine for a lookup somebody types and wrong for anything a fief owns across a
+     * rename, which is what PatriamHeraldry's armorial is: it keys a coat of arms on
+     * {@code fief:<this UUID>}, and a name-keyed record would attach the arms to whoever took the old
+     * name next.
+     *
+     * <p>Never null on a live fief. A record written before this field existed has one minted while it
+     * loads, and {@code StorageService.loadFiefs} writes the file back straight away rather than
+     * waiting for the next shutdown. See {@link #idMinted}.
+     */
+    private UUID id;
+
+    /**
+     * Whether {@link #id} was minted during this load rather than read from the record.
+     *
+     * <p>Not saved, and only true for the one boot that migrates a fief. {@code StorageService} reads
+     * it to decide whether the save file has to be rewritten immediately: a minted id that is not on
+     * disk before the next crash is minted again on the following boot, which would silently detach a
+     * fief's arms with nothing anywhere reporting an error.
+     */
+    private boolean idMinted;
+
     private String name;
     private String description = "Default Description";
 
@@ -100,6 +125,7 @@ public class Fief {
 
     public Fief(MedievalFactionsIntegrator medievalFactionsIntegrator, String name, UUID ownerUUID, String factionId, Logger logger) {
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
+        this.id = UUID.randomUUID();
         this.name = name;
         this.ownerUUID = ownerUUID;
         this.factionId = factionId;
@@ -116,6 +142,25 @@ public class Fief {
         // NPE out of StorageService.loadFiefs() for any non-empty fiefs.json.
         flags = new FiefFlags(logger);
         this.load(fiefData);
+    }
+
+    /**
+     * This fief's stable identity. Never null, and never its name. See {@link #id}.
+     *
+     * <p>Use this for anything a fief keeps across a rename and the name for anything a player reads.
+     */
+    public UUID getId() {
+        return id;
+    }
+
+    /**
+     * Whether this fief was given its id during load rather than reading one. See {@link #idMinted}.
+     *
+     * <p>For {@code StorageService} only, which uses it to decide whether the save file needs
+     * rewriting at boot. It is always false on the boot after that.
+     */
+    public boolean hasMintedId() {
+        return idMinted;
     }
 
     public String getName() {
@@ -321,19 +366,26 @@ public class Fief {
      * <p>Deliberately NOT named equals: it was an overload of Object.equals, not an override, and had
      * no matching hashCode. It worked only because the single call site's static types happened to
      * select it -- change one of those to Object and the semantics silently flip to identity.
+     *
+     * <p>Compares {@link #id} now that there is one. The previous comparison was holder plus name plus
+     * faction, which is three fields that all change while the fief stays the same fief: it answered
+     * false for a fief compared across a rename or a regrant, and true for two genuinely different
+     * fiefs that happened to agree on all three.
      */
     public boolean isSameFief(Fief fief) {
-        // Objects.equals on the holder: it is nullable now, and a vacant fief must compare equal to
-        // itself rather than throwing inside territory-protection checks.
-        return Objects.equals(fief.getOwnerUUID(), this.getOwnerUUID())
-                && fief.getName().equals(this.getName())
-                && fief.getFactionId().equals(this.getFactionId());
+        // Objects.equals rather than id.equals: null cannot happen on a live fief, but this is called
+        // from the interaction listener on every protected block, and a throw there costs a player
+        // their protection rather than logging a line somebody reads.
+        return fief != null && Objects.equals(fief.getId(), this.getId());
     }
 
     public Map<String, String> save() {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();;
 
         Map<String, String> saveMap = new HashMap<>();
+        // First, because it is the only key here that is an identity. Written as the UUID's string
+        // form, which never contains a colon and so is always a legal PatriamHeraldry subject id.
+        saveMap.put("id", gson.toJson(id));
         saveMap.put("name", gson.toJson(name));
         saveMap.put("description", gson.toJson(description));
         // Both of these are nullable, and Gson writes null as the JSON literal null, which reads back
@@ -369,6 +421,8 @@ public class Fief {
 
         name = gson.fromJson(data.get("name"), String.class);
         description = gson.fromJson(data.get("description"), String.class);
+        // After the name, which the warning inside readId needs in order to say which fief it means.
+        id = readId(gson, data.get("id"));
         ownerUUID = readUUID(gson, data.get("ownerUUID"));
         heirUUID = readUUID(gson, data.get("heirUUID"));
         factionId = gson.fromJson(data.get("factionId"), String.class);
@@ -408,5 +462,36 @@ public class Fief {
         // Gson answers null for both cases, so one branch covers them.
         String value = gson.fromJson(json, String.class);
         return value == null ? null : UUID.fromString(value);
+    }
+
+    /**
+     * Reads this fief's stable id, minting one when the record has none. See {@link #id}.
+     *
+     * <p>Every fief on a server that upgraded into this field takes the absent branch exactly once.
+     * The mint is recorded in {@link #idMinted} so that {@code StorageService} writes the file back
+     * during the same boot: an id that only reaches disk at the next clean shutdown is minted again
+     * after a crash, and the observable symptom of that is a fief's coat of arms quietly detaching
+     * with no error logged anywhere.
+     *
+     * <p>An id that is present but unreadable -- a hand-edited save, a truncated write -- is treated
+     * as absent and replaced rather than thrown out of. Throwing would send the row to
+     * {@code StorageService}'s quarantine, which costs the holder the fief itself and every claim
+     * under it; minting costs only whatever was keyed on the old id. That is not a silent trade, so
+     * it is printed rather than logged: {@code Logger.log} is conditional on debugMode and a
+     * detached coat of arms is otherwise invisible.
+     */
+    private UUID readId(Gson gson, String json) {
+        String value = gson.fromJson(json, String.class);
+        if (value != null) {
+            try {
+                return UUID.fromString(value);
+            } catch (IllegalArgumentException e) {
+                System.out.println("[Fiefs] WARNING: the fief '" + name + "' had an unreadable id ("
+                        + value + "), so it has been given a new one. Anything keyed on the old id, a "
+                        + "coat of arms included, no longer points at this fief.");
+            }
+        }
+        idMinted = true;
+        return UUID.randomUUID();
     }
 }

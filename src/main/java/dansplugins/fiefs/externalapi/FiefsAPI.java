@@ -42,6 +42,20 @@ public class FiefsAPI {
         return fief == null ? null : new FI_Fief(fief);
     }
 
+    /**
+     * The fief with this stable id, or null.
+     *
+     * <p>The lookup a consumer holding a stored reference to a fief wants, and the only one that is
+     * safe across {@code /fi rename}. Named apart from the {@code getFief} overloads for the reason
+     * {@code PersistentData.getFiefById} is: two of those take a UUID and both mean a player's.
+     *
+     * @param fiefId a fief's own id, from {@link FI_Fief#getId()}
+     */
+    public FI_Fief getFiefById(UUID fiefId) {
+        Fief fief = persistentData.getFiefById(fiefId);
+        return fief == null ? null : new FI_Fief(fief);
+    }
+
     public ArrayList<FI_Fief> getFiefsOfFaction(String factionId) {
         ArrayList<Fief> fiefs = persistentData.getFiefsOfFaction(factionId);
         ArrayList<FI_Fief> toReturn = new ArrayList<>();

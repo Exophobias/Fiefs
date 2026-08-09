@@ -16,6 +16,20 @@ public class FI_Fief {
         this.fief = fief;
     }
 
+    /**
+     * This fief's stable identity, which is not its name and never changes.
+     *
+     * <p>Published because a consumer that keeps anything ABOUT a fief has to key it on something that
+     * survives {@code /fi rename}. PatriamHeraldry's armorial is the first: it stores a coat of arms
+     * under {@code fief:<this uuid>}, and keying it on the name would hand the arms to whoever took the
+     * old name next.
+     *
+     * <p>Never null. A fief loaded from a record written before this existed was given one at load.
+     */
+    public UUID getId() {
+        return fief.getId();
+    }
+
     public String getName() {
         return fief.getName();
     }

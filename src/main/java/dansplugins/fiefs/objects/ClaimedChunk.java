@@ -27,6 +27,21 @@ public class ClaimedChunk {
     private int z;
     private String world;
     private String faction;
+
+    /**
+     * The claiming fief's NAME, still, now that {@code Fief} has a stable id.
+     *
+     * <p>Deliberately not migrated, and worth saying why so it does not read as an oversight. The id
+     * was added because something outside this plugin keys records on a fief and must survive
+     * {@code /fi rename}; a claim is inside this plugin, and {@code RenameCommand} re-points every one
+     * of them in the same breath as the rename. Moving these to the id would remove that fix-up, which
+     * is a genuine improvement, but it costs a second migration over claimedChunks.json to buy it, and
+     * the cost of getting a claim migration wrong is a player's land protection rather than a picture.
+     *
+     * <p>So: names here, id for identity. If this is ever moved, the call sites are every
+     * {@code getFief().equalsIgnoreCase(...)} in the plugin, and the loop in {@code RenameCommand} goes
+     * away with it.
+     */
     private String fief;
 
     public ClaimedChunk() {

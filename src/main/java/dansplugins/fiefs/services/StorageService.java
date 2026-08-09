@@ -160,6 +160,10 @@ public class StorageService {
      * verbatim on the next save, so the plugin never silently deletes data it could not understand.
      * It stays quarantined until somebody fixes or removes it, and it is logged every startup so that
      * somebody knows to.
+     *
+     * <p>This is also where the stable-id migration is completed. A fief loaded from a record written
+     * before {@code Fief} had an id mints one, and the file is rewritten immediately rather than at the
+     * next save, for the reason set out in {@link #persistMintedIds}.
      */
     private void loadFiefs() {
         persistentData.clearFiefs();
@@ -167,14 +171,44 @@ public class StorageService {
 
         ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(FIEFS_FILE_NAME));
 
+        int minted = 0;
         for (Map<String, String> fiefData : data){
             try {
                 Fief fief = new Fief(fiefData, medievalFactionsIntegrator, logger);
                 persistentData.addFief(fief);
+                if (fief.hasMintedId()) {
+                    minted++;
+                }
             } catch (RuntimeException e) {
                 quarantine(quarantinedFiefs, fiefData, FIEFS_FILE_NAME, e);
             }
         }
+        persistMintedIds(minted);
+    }
+
+    /**
+     * Writes the save file back when the load minted any stable ids, and says so.
+     *
+     * <p>The write cannot wait for the autosave or for shutdown. {@code onDisable} does save, so a
+     * clean restart would persist the ids anyway, but a crash or a {@code kill -9} would not -- and the
+     * next boot would then mint different ids for the same fiefs. Nothing about that failure is
+     * visible: the fiefs load, the commands work, and the only casualty is whatever was keyed on the
+     * ids, which is a coat of arms silently belonging to nobody after a restart nobody connects it to.
+     *
+     * <p>One rewrite, on one boot per fief, in exchange for that. It is announced rather than logged
+     * through {@link Logger} because that is conditional on debugMode, and an operator who later finds
+     * a fief's arms detached needs to be able to find the boot this happened on.
+     */
+    private void persistMintedIds(int minted) {
+        if (minted == 0) {
+            return;
+        }
+        String message = "[Fiefs] " + minted + " fief(s) predated stable fief ids and have each been "
+                + "given one. Rewriting " + FIEFS_FILE_NAME + " now so the ids survive an unclean "
+                + "shutdown. This happens once.";
+        logger.log(message);
+        System.out.println(message);
+        saveFiefs();
     }
 
     private void loadClaimedChunks() {
