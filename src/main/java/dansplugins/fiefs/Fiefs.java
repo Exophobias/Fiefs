@@ -3,6 +3,7 @@ package dansplugins.fiefs;
 import dansplugins.fiefs.commands.*;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.externalapi.FiefsAPI;
+import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.listeners.FactionEventListener;
 import dansplugins.fiefs.listeners.InteractionListener;
@@ -90,6 +91,11 @@ public class Fiefs extends JavaPlugin {
         // Registered AFTER the load, so nothing can read an empty store and cache the answer.
         getServer().getServicesManager().register(
                 FiefsAPI.class, getAPI(), this, ServicePriority.Normal);
+
+        // Also after the load, and for a second reason on top of that one: the guard behind this call
+        // is what keeps Fiefs working on a server with no PatriamHeraldry. Nothing about heraldry is
+        // named from here. See HeraldryPresence.
+        HeraldryPresence.register(this, persistentData, medievalFactionsIntegrator);
     }
 
     /**

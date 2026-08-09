@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  A standalone descriptor for the vendored patriamheraldry-api jar.
+
+  This exists because the jar carries its own META-INF/maven/.../pom.xml, and install:install-file
+  prefers that embedded descriptor over generating one. The embedded copy inherits from
+  patriamheraldry-parent, which is not vendored and cannot be resolved, so installing it makes every
+  later resolution fail on a missing parent pom. That failure surfaces much further along, inside a
+  Maven dependency-collection error that does not mention this file.
+
+  Deliberately declares no parent and no dependencies. The real module depends on paper-api, but Fiefs
+  already depends on paper-api directly, at the version it intends to compile against, so inheriting
+  one from here could only introduce a second opinion about that version. This artifact is provided
+  scope: it is compiled against and never shipped, because PatriamHeraldry unpacks these classes into
+  its own plugin jar and supplies them at runtime.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.github.exophobias</groupId>
+    <artifactId>patriamheraldry-api</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>PatriamHeraldry API (vendored)</name>
+    <description>The arms codec, the vocabulary and the SubjectResolver contract consumers bind to.</description>
+</project>

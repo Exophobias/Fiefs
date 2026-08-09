@@ -5,6 +5,11 @@ main: dansplugins.fiefs.Fiefs
 api-version: '26.1'
 author: DanTheTechMan
 depend: [MedievalFactions]
+# Soft, because a fief with no arms is still a fief. It has to be declared even so: Paper only lets a
+# plugin see another plugin's classes when a relationship between them is declared, and softdepend also
+# enables PatriamHeraldry before Fiefs so its api is loadable when the bridge registers. Every class
+# that touches those types is guarded; see dansplugins.fiefs.heraldry.HeraldryPresence.
+softdepend: [PatriamHeraldry]
 
 commands:
   fiefs:

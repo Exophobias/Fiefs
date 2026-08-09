@@ -20,6 +20,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `heldSince` on a fief, so how long its holder has held it can be asked
 - `FiefsAPI` published through Bukkit's `ServicesManager`, so another plugin can read fiefs without
   naming a Fiefs class at link time
+- **A stable id on every fief**, exposed as `FI_Fief.getId()` with `FiefsAPI.getFiefById(UUID)` beside
+  it. A fief was found by name everywhere, and `/fi rename` changes the name, so anything another
+  plugin stored about a fief pointed at whoever took the old name next. A fief saved before this
+  existed is given an id as it loads, and `fiefs.json` is rewritten during that same boot rather than
+  at the next shutdown: a crash between the two would mint a different id on the following boot, and
+  the only symptom of that is a record that has quietly stopped belonging to anybody
+- A PatriamHeraldry `SubjectResolver` for fiefs, so a fief can bear a coat of arms. It answers who a
+  player is acting for and whether they may speak for it -- the fief's holder, or the head of its
+  faction, which is the authority `/fi grant` already uses. PatriamHeraldry is a **soft** dependency:
+  everything that names it lives in one guarded package, and Fiefs is unchanged on a server without it
 
 ### Changed
 - **`/fi leave` no longer disbands a fief when its holder leaves.** It used to destroy the fief, its
@@ -44,6 +54,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   exactly what a rebellion's majority test reads
 - Save files are written to a temporary file and moved into place, so a crash or a full disk cannot
   leave a half-written save. The previous code truncated the real file before writing it
+- `Fief.isSameFief` compares the fief's id. It compared holder, name and faction, which are three
+  fields that all change while the fief stays the same fief: it answered false for a fief compared
+  across a rename or a regrant, and true for two different fiefs that happened to agree on all three
+- The test that proves a corrupt `fiefs.json` is never overwritten was writing to `plugins/Fiefs`,
+  while MockBukkit's data folder is `plugins/Fiefs-<version>`. The plugin never opened the file, so it
+  passed by leaving alone a file it had not read. It now writes where the plugin looks and asserts the
+  plugin actually refused to enable
 
 ## [0.11.0]
 

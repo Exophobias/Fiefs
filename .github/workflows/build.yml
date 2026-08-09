@@ -80,6 +80,52 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon publishToMavenLocal
 
+      # patriamheraldry-api is committed to libs/ rather than built from source, because
+      # PatriamHeraldry is private and a workflow's default GITHUB_TOKEN is scoped to its own
+      # repository -- actions/checkout simply 404s on it. PatriamMFAddon/libs/ vendors two other
+      # private APIs for the same reason. See libs/README.md.
+      #
+      # This proves the committed file is the one that was vetted, and nothing more. It CANNOT tell
+      # you it is up to date: the source it came from is unreachable from here, so a stale jar passes
+      # this gate happily.
+      - name: Verify the vendored API jar
+        working-directory: libs
+        run: |
+          sha256sum -c CHECKSUMS
+          echo "Vendored jar matches CHECKSUMS (integrity only -- says nothing about staleness)."
+
+      # -DpomFile is load-bearing, not tidiness. The jar carries its own META-INF/maven/.../pom.xml,
+      # and install:install-file installs THAT in preference to generating a descriptor. The embedded
+      # copy inherits from patriamheraldry-parent, which is not vendored, so every later resolution
+      # would die on a missing parent pom. The checked-in .pom is standalone and parentless.
+      #
+      # Runs unconditionally and after the cache restore, for the reason the fork's install step does:
+      # the cache key hashes **/pom.xml, which does not match libs/patriamheraldry-api-1.0.0.pom, so a
+      # refreshed jar in libs/ would otherwise be shadowed by a cached copy of the old one.
+      - name: Install the vendored API jar
+        working-directory: libs
+        run: |
+          mvn -B --no-transfer-progress install:install-file \
+            -Dfile=patriamheraldry-api-1.0.0.jar -DpomFile=patriamheraldry-api-1.0.0.pom
+
+      # Reading the descriptor back is the exact operation that fails when the wrong one lands, and it
+      # fails here with a clear message rather than a minute later inside an unrelated-looking Maven
+      # dependency-collection error.
+      - name: Verify the vendored descriptor resolves standalone
+        run: |
+          pom=~/.m2/repository/com/github/exophobias/patriamheraldry-api/1.0.0/patriamheraldry-api-1.0.0.pom
+          # Tested for absence first on purpose: `grep -q` on a missing file also returns non-zero, so
+          # a parent check alone would report a pom that was never installed as passing.
+          if [ ! -f "$pom" ]; then
+            echo "::error::No descriptor installed at $pom"
+            exit 1
+          fi
+          if grep -q "<parent>" "$pom"; then
+            echo "::error::$pom declares a parent; it must be standalone."
+            exit 1
+          fi
+          echo "ok: $pom"
+
       # Cheap, and it fails before Maven starts. Nothing parses plugin.yml at build time -- `mvn
       # package` copies it into the jar verbatim -- so a conflict marker in it ships silently.
       - name: Reject git conflict markers

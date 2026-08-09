@@ -41,6 +41,22 @@
              bytecode runs fine on the Java 25 server. -->
         <medievalfactions.version>5.9.0-patriam.1-SNAPSHOT</medievalfactions.version>
 
+        <!-- PatriamHeraldry's api module: the arms codec and the SubjectResolver contract. Like the
+             Medieval-Factions api it is NOT on any public repository, so it must be installed into the
+             local Maven repository first. Either from a clone:
+
+                 cd ../PatriamHeraldry && ./mvnw -pl patriamheraldry-api -am install
+
+             or from the copy committed to libs/, which is what CI uses because the repository is
+             private and a workflow token cannot reach it:
+
+                 cd libs && mvn install:install-file \
+                     -Dfile=patriamheraldry-api-1.0.0.jar -DpomFile=patriamheraldry-api-1.0.0.pom
+
+             See libs/README.md. Unlike MedievalFactions this is a SOFT dependency: see plugin.yml and
+             dansplugins.fiefs.heraldry.HeraldryPresence. -->
+        <patriamheraldry.version>1.0.0</patriamheraldry.version>
+
         <!-- MockBukkit 4.114.0 requires JUnit 6, not 5. -->
         <junit.version>6.1.0</junit.version>
         <mockbukkit.version>4.114.0</mockbukkit.version>
@@ -103,6 +119,24 @@
             <artifactId>medieval-factions-api</artifactId>
             <version>${medievalfactions.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- PatriamHeraldry's api, so a fief can be a subject that bears arms. Provided, for the same
+             reason the Medieval-Factions api is: PatriamHeraldry unpacks these classes into its own
+             plugin jar and supplies them at runtime, so shading or bundling them here would put a
+             second copy of SubjectResolver on the server and the ServicesManager lookup would then
+             match nothing.
+
+             It is optional as well as provided. Provided alone would be enough for the build, but
+             `optional` is the honest declaration and it stops the api leaking onto the compile path of
+             anything that depends on Fiefs. Nothing outside dansplugins.fiefs.heraldry may name these
+             types; that package is guarded and the rest of the plugin must keep loading without it. -->
+        <dependency>
+            <groupId>com.github.exophobias</groupId>
+            <artifactId>patriamheraldry-api</artifactId>
+            <version>${patriamheraldry.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 
         <!-- Tests -->

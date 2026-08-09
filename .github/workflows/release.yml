@@ -45,6 +45,17 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon publishToMavenLocal
 
+      # Also the same prerequisite: PatriamHeraldry is private, so its api is committed to libs/ and
+      # installed from there rather than built from source. See libs/README.md. There is no cache in
+      # this workflow, so the ordering note in build.yml does not apply, but the -DpomFile does: the
+      # descriptor embedded in the jar names a parent that is not vendored.
+      - name: Install the vendored API jar
+        working-directory: libs
+        run: |
+          sha256sum -c CHECKSUMS
+          mvn -B --no-transfer-progress install:install-file \
+            -Dfile=patriamheraldry-api-1.0.0.jar -DpomFile=patriamheraldry-api-1.0.0.pom
+
       - name: Build with Maven
         run: mvn -B --no-transfer-progress clean package
 
