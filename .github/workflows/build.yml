@@ -165,6 +165,73 @@ jobs:
           fi
           echo "ok: $pom"
 
+      # The publish step above reports success for publishing SOMETHING at SOME coordinate. It cannot
+      # tell you the coordinate Fiefs pins is the one that got published, nor that the file Maven
+      # hands the compiler is the file Gradle just wrote. Everything in between is assumption:
+      # medievalfactions.version is pinned by hand in pom.xml, the restored cache untars over ~/.m2,
+      # snapshots resolve through a remote repository that is still declared, and any dependency is
+      # free to carry a second copy of the API's classes.
+      #
+      # Run 31325159411 turned out to be a stale checkout rather than any of that, but the reason it
+      # took so long to see is that no step could rule any of it out. These assertions can, and they
+      # guard the failure that matters more than a red build: a GREEN build compiled against a stale
+      # API, which no compile error would ever report.
+      #
+      # Deliberately member-agnostic. Asserting that the jar contains getFlag would have to be
+      # rewritten for the next API addition, and would say nothing about the additions after that.
+      # Byte identity to the jar Gradle produced says it for every member at once, and the commit
+      # check above ties that jar to the tip of main.
+      #
+      # Must run after the vendored install: resolving the classpath needs every declared dependency
+      # present, patriamheraldry-api included.
+      - name: Verify the compile classpath carries the fork just built
+        run: |
+          api_class=com/dansplugins/factionsystem/api/MedievalFactionsApi.class
+          # Written outside the repository so the conflict-marker scan and the packaged jar never see
+          # it, whether or not this step reaches its end.
+          cp=$RUNNER_TEMP/fiefs-classpath.txt
+
+          # apiJar writes exactly one file under build/libs with this base name. Counting rather than
+          # taking the first match: two would mean a jar from another version is lying around, and
+          # which one the glob yielded would decide what this whole step compared.
+          built=$(ls .mf-src/build/libs/medieval-factions-api-*.jar)
+          if [ "$(printf '%s\n' "$built" | wc -l)" -ne 1 ]; then
+            echo "::error::Expected one api jar in .mf-src/build/libs, found:"; echo "$built"; exit 1
+          fi
+
+          # Ask Maven what it resolves rather than reconstructing the path from the pinned version.
+          # A pin that points somewhere else then fails here, with both filenames in view.
+          mvn -B -q --no-transfer-progress dependency:build-classpath "-Dmdep.outputFile=$cp"
+          # Linux paths contain no colons, so the classpath separator is unambiguous here.
+          resolved=$(tr ':' '\n' < "$cp" | grep -F medieval-factions-api || true)
+          if [ "$(printf '%s' "$resolved" | grep -c . || true)" -ne 1 ]; then
+            echo "::error::Expected exactly one medieval-factions-api on the classpath, found:"
+            echo "$resolved"; exit 1
+          fi
+
+          echo "built:    $built"
+          echo "resolved: $resolved"
+          # Hashed from stdin so the filenames, which differ by design, stay out of the comparison.
+          if [ "$(sha256sum <"$built")" != "$(sha256sum <"$resolved")" ]; then
+            echo "::error::The api jar on the compile classpath is not the one Gradle just built."
+            echo "::error::Something between the publish and the compile is serving a different file."
+            exit 1
+          fi
+
+          # A second copy of the API inside another artifact would shadow the real one, or be shadowed
+          # by it, according to classpath order, and the winner would change without warning.
+          carriers=$(for jar in $(tr ':' '\n' < "$cp" | grep '\.jar$'); do
+            if unzip -Z1 "$jar" 2>/dev/null | grep -qxF "$api_class"; then echo "$jar"; fi
+          done)
+          if [ "$carriers" != "$resolved" ]; then
+            echo "::error::MedievalFactionsApi must come from one jar only. Carriers found:"
+            echo "$carriers"; exit 1
+          fi
+
+          sha=$(sha256sum <"$resolved" | cut -d' ' -f1)
+          echo "- api on classpath: \`$(basename "$resolved")\` sha256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "The classpath api jar is byte-identical to the fork built in this run."
+
       # Cheap, and it fails before Maven starts. Nothing parses plugin.yml at build time -- `mvn
       # package` copies it into the jar verbatim -- so a conflict marker in it ships silently.
       - name: Reject git conflict markers
