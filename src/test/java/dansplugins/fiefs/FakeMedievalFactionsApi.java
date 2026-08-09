@@ -30,7 +30,7 @@ import java.util.UUID;
  * An in-memory stand-in for Medieval Factions.
  *
  * <p>This is the payoff of binding Fiefs to the stable API rather than MF's internals: faking the
- * whole dependency is one class implementing eleven methods. Faking MF's internal service graph
+ * whole dependency is one class implementing the api's methods. Faking MF's internal service graph
  * ({@code MfFactionService}, {@code MfPlayerService}, {@code MfClaimService}, plus Kotlin value
  * classes) would not have been practical.
  */
@@ -40,6 +40,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     private final Map<UUID, String> factionIdByPlayer = new HashMap<>();
     private final Map<String, String> factionIdByChunkKey = new HashMap<>();
     private final Map<UUID, Double> powerByPlayer = new HashMap<>();
+    private final Map<String, String> flagsByFactionAndName = new HashMap<>();
 
     // --- test setup helpers ---
 
@@ -179,6 +180,16 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return powerByPlayer.getOrDefault(playerId, 0.0);
     }
 
+    /**
+     * Flags are recorded rather than ignored, so a test can read back what it wrote. Fiefs sets no
+     * flag itself; this exists because MF's arms mirror put a flag pair on the api, and a fake that
+     * answered null for everything would make a caller's write indistinguishable from a no-op.
+     */
+    @Override
+    public @Nullable String getFlag(@NotNull FactionId faction, @NotNull String flag) {
+        return flagsByFactionAndName.get(faction.getValue() + ":" + flag);
+    }
+
     @Override
     public @NotNull ApiResult setHome(@NotNull FactionId faction, @NotNull Location location) {
         return ApiResult.success();
@@ -205,6 +216,12 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
 
     @Override
     public @NotNull ApiResult forcePeace(@NotNull FactionId faction, @NotNull FactionId otherFaction) {
+        return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiResult setFlag(@NotNull FactionId faction, @NotNull String flag, @NotNull String value) {
+        flagsByFactionAndName.put(faction.getValue() + ":" + flag, value);
         return ApiResult.success();
     }
 
