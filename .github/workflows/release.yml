@@ -24,6 +24,33 @@ jobs:
           ref: main
           path: .mf-src
 
+      # A released jar is compiled against whatever main pointed at when this job fetched, and until
+      # now nothing recorded which commit that was. See the long note in build.yml: a run there once
+      # fetched main 21 seconds before the push it needed and failed with a compile error that named
+      # the wrong culprit. Here the equivalent would not fail at all, it would ship.
+      - name: Report the Medieval-Factions commit, and reject one that raced a push
+        working-directory: .mf-src
+        run: |
+          head=$(git rev-parse HEAD)
+          live=$(git ls-remote origin refs/heads/main | cut -f1)
+          {
+            echo "### Medieval-Factions fork this release was built against"
+            echo "- commit: \`$head\`"
+            echo "- $(git log -1 --format='%cI %s' HEAD)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked out: $head"
+          echo "Live main:   $live"
+          if [ -z "$live" ]; then
+            echo "::error::Could not read the live tip of Medieval-Factions main."
+            exit 1
+          fi
+          if [ "$head" != "$live" ]; then
+            echo "::error::Medieval-Factions main moved after this job fetched it ($head -> $live)."
+            echo "::error::Releasing would ship a jar compiled against the older API. Re-run the job."
+            exit 1
+          fi
+          echo "The checked-out fork is the current tip of main."
+
       # Gradle 7.6.4 cannot run on JDK 21+; installed first so JAVA_HOME_17_X64 exists below.
       - name: Set up JDK 17 (to build Medieval-Factions)
         uses: actions/setup-java@v5

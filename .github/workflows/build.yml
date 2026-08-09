@@ -35,6 +35,45 @@ jobs:
           ref: main
           path: .mf-src
 
+      # `ref: main` resolves to whatever main pointed at the moment this job fetched, and nothing
+      # downstream ever says which commit that was. That gap cost hours once: run 31325159411
+      # fetched main at 16:58:05Z, 21 seconds before the push that added MedievalFactionsApi.getFlag
+      # landed at 16:58:26Z. The fork built and published cleanly, and then the test compile failed
+      # with "method does not override or implement a method from a supertype" against an API that
+      # genuinely did not have the method yet. A commit's committer date is not its push date, so the
+      # commit timestamp looked reassuringly old and pointed the investigation at the Maven cache,
+      # which had nothing to do with it.
+      #
+      # So: record the commit, and compare it against the live tip. A mismatch means the fetch raced
+      # a push and this run would test the new expectations against the old API. Re-running the job
+      # is the whole fix, which is a thing worth being told rather than deduced.
+      #
+      # The window is only the seconds between the fetch above and this step, so a push landing
+      # inside it is rare; when it does happen this fails in seconds instead of two and a half
+      # minutes later with a message about the wrong subsystem.
+      - name: Report the Medieval-Factions commit, and reject one that raced a push
+        working-directory: .mf-src
+        run: |
+          head=$(git rev-parse HEAD)
+          live=$(git ls-remote origin refs/heads/main | cut -f1)
+          {
+            echo "### Medieval-Factions fork"
+            echo "- commit: \`$head\`"
+            echo "- $(git log -1 --format='%cI %s' HEAD)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked out: $head"
+          echo "Live main:   $live"
+          if [ -z "$live" ]; then
+            echo "::error::Could not read the live tip of Medieval-Factions main."
+            exit 1
+          fi
+          if [ "$head" != "$live" ]; then
+            echo "::error::Medieval-Factions main moved after this job fetched it ($head -> $live)."
+            echo "::error::This run would compile against the older API. Re-run the job."
+            exit 1
+          fi
+          echo "The checked-out fork is the current tip of main."
+
       # Medieval-Factions pins Gradle 7.6.4, which cannot run on JDK 21+. Its output is Java 17
       # bytecode, which runs fine on a Java 25 server and compiles fine against Java 25 here.
       # Installed before the JDK 25 step only so JAVA_HOME_17_X64 exists for the publish step;
