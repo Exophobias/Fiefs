@@ -13,6 +13,7 @@ import java.nio.file.Files;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -63,22 +64,35 @@ class FiefsLifecycleTest {
      * The data-loss regression test. A save file that cannot be parsed must survive a full plugin
      * lifecycle untouched. Upstream wrote [] over it on disable, because Bukkit marks a plugin enabled
      * before calling onEnable and does not un-mark it when onEnable throws.
+     *
+     * <p>This wrote to {@code plugins/Fiefs} until the fief-id work needed the same path and found that
+     * MockBukkit's data folder is {@code plugins/Fiefs-<version>}. The plugin therefore never read the
+     * file, started empty, and left it alone for no reason at all -- so the test passed without once
+     * exercising what it is named after. See {@link PluginDataFolder}.
      */
     @Test
     void aCorruptSaveFileIsNeverOverwritten() throws Exception {
         withMedievalFactions();
 
-        File dataFolder = new File(MockBukkit.getMock().getPluginsFolder(), "Fiefs");
-        assertTrue(dataFolder.mkdirs() || dataFolder.isDirectory());
+        File dataFolder = PluginDataFolder.create();
         File fiefsJson = new File(dataFolder, "fiefs.json");
         String corrupt = "[{\"name\": \"Ashford Mill\", TRUNCATED-GARBAGE";
         Files.write(fiefsJson.toPath(), corrupt.getBytes(StandardCharsets.UTF_8));
 
+        Exception refusal = null;
         try {
-            MockBukkit.load(Fiefs.class);
+            Fiefs fiefs = MockBukkit.load(Fiefs.class);
+            PluginDataFolder.assertIsWhereThePluginLooked(dataFolder, fiefs);
         } catch (Exception expected) {
             // onEnable is expected to fail loudly rather than start empty.
+            refusal = expected;
         }
+        // Asserted rather than merely swallowed, because a swallowed exception is indistinguishable
+        // from no exception -- which is how this test spent its life passing against a file the plugin
+        // never opened. The refusal is only reachable if the file was actually read.
+        assertNotNull(refusal, "the plugin must refuse to enable rather than start empty");
+        assertTrue(refusal.getMessage().contains(fiefsJson.getPath()),
+                "the refusal must name the file this test wrote: " + refusal.getMessage());
 
         // Disable WITHOUT unmocking: unmock() deletes the temp data folder, so the file has to be
         // read while it still exists. Disabling is the step that used to destroy it.
