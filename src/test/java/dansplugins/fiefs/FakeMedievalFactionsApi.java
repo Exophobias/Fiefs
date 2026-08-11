@@ -9,6 +9,7 @@ import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionRoleView;
 import com.dansplugins.factionsystem.api.FactionView;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
+import com.dansplugins.factionsystem.api.PeaceOutcome;
 import com.dansplugins.factionsystem.api.SuccessionPolicy;
 import com.dansplugins.factionsystem.api.geometry.ChunkPos;
 import org.bukkit.Chunk;
@@ -217,6 +218,15 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     @Override
     public @NotNull ApiResult forcePeace(@NotNull FactionId faction, @NotNull FactionId otherFaction) {
         return ApiResult.success();
+    }
+
+    /**
+     * This fake models no relationships at all, so there is never a second half left standing: laying
+     * one side's arms down is peace. Fiefs calls neither this nor {@link #forcePeace}.
+     */
+    @Override
+    public @NotNull ApiOutcome<PeaceOutcome> layDownArms(@NotNull FactionId faction, @NotNull FactionId otherFaction) {
+        return ApiOutcome.success(PeaceOutcome.PEACE_MADE);
     }
 
     @Override
