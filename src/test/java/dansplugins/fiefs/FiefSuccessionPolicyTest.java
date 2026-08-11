@@ -62,7 +62,7 @@ class FiefSuccessionPolicyTest {
 
     private static final String FACTION_ID = "faction-1";
 
-    private ServerMock server;
+    private ShutdownAwareServerMock server;
     private Fiefs fiefs;
     private FakeMedievalFactionsApi api;
     private PlayerMock holder;
@@ -79,7 +79,7 @@ class FiefSuccessionPolicyTest {
 
     @BeforeEach
     void setUp() {
-        server = MockBukkit.mock();
+        server = MockBukkit.mock(new ShutdownAwareServerMock());
         api = new FakeMedievalFactionsApi();
         server.getServicesManager().register(MedievalFactionsApi.class, api,
                 MockBukkit.createMockPlugin("MedievalFactions"), ServicePriority.Normal);
@@ -473,6 +473,51 @@ class FiefSuccessionPolicyTest {
         assertEquals(elder.getUniqueId(), fiefNamed("Ashford Mill").getOwnerUUID());
     }
 
+    /**
+     * The same disable, mid-session, is the one an operator has to be told about: the government
+     * layer has stopped answering on a server that is still taking players, and nothing else on the
+     * server will say so.
+     */
+    @Test
+    void aMidSessionDisableOfTheOwningPluginIsAnAlarm() {
+        register();
+
+        // The server is up and taking players, which is what makes this worth a warning.
+        server.getPluginManager().callEvent(new PluginDisableEvent(addon));
+
+        List<String> warnings = logsAt(Level.WARNING);
+        assertEquals(1, warnings.size(), "said once, and said loudly");
+        assertTrue(warnings.get(0).contains("PatriamMFAddon"),
+                "and it names the plugin whose layer has gone, not just the fact that one has");
+        assertTrue(warnings.get(0).contains("no fief follows its realm's government form"),
+                "and it says what that now costs, because the ladder answering is not visibly wrong");
+    }
+
+    /**
+     * The same handler on a clean shutdown, which is the overwhelmingly common case and is not a
+     * fault at all. Bukkit disables the plugin that registered the policy BEFORE it disables Fiefs,
+     * so without this the last line of every single healthy run was a warning that no fief follows
+     * its realm's government form - and an alarm that fires on every healthy run is one nobody reads
+     * by the time a real one arrives.
+     *
+     * <p>The drop itself is still asserted here. Silence must come from the log level and not from
+     * skipping the work, or a policy belonging to a plugin that has gone would stay registered.
+     */
+    @Test
+    void aCleanShutdownDropsThePolicyAndSaysNothingAlarming() {
+        register();
+        server.stopping = true;
+
+        server.getPluginManager().callEvent(new PluginDisableEvent(addon));
+
+        assertNull(fiefs.getAPI().getSuccessionPolicyOwner(),
+                "the drop is unconditional: only the alarm depends on which moment this is");
+        assertTrue(logsAt(Level.WARNING).isEmpty(),
+                "a healthy shutdown must not end on a warning");
+        assertFalse(anyLogContains("no longer in force"),
+                "at no level, either: a line about the layer going away is only news mid-session");
+    }
+
     // ---- registration -----------------------------------------------------
 
     /**
@@ -844,6 +889,24 @@ class FiefSuccessionPolicyTest {
                 throw new NoClassDefFoundError("a government plugin that half-enabled");
             }
             return standingAnswer.apply(eligible);
+        }
+    }
+
+    /**
+     * A server that will say whether it is stopping, which MockBukkit's own {@link ServerMock} will
+     * not: its {@code isStopping()} throws {@code UnimplementedOperationException}.
+     *
+     * <p>Overriding the server rather than handing a flag to the service is what keeps the two
+     * shutdown tests on the path the real server takes - a real {@link PluginDisableEvent}, through
+     * the real plugin manager, into the registered listener - which is the only path on which the
+     * ordering that caused the defect exists at all.
+     */
+    private static final class ShutdownAwareServerMock extends ServerMock {
+        private volatile boolean stopping;
+
+        @Override
+        public boolean isStopping() {
+            return stopping;
         }
     }
 }

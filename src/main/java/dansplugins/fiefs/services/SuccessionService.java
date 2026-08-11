@@ -338,6 +338,15 @@ public class SuccessionService {
      * poisoning - the plugin may enable again and register afresh - but it does stand the layer down,
      * because until it does, every fief is resolving by the ladder while the server believes forms
      * are honoured.
+     *
+     * <p><b>The drop is unconditional and the alarm is not.</b> A plugin can only find this seam
+     * during its own enable by enabling after Fiefs, so a clean shutdown, which disables in the
+     * reverse of that order, always disables it while Fiefs is still up and still listening. Warning
+     * there would end every single healthy run with a line saying no fief follows its realm's
+     * government form, and an alarm that fires on every healthy run is one an operator learns to
+     * read past, which is how the one that matters gets missed. Mid-session the same line is the
+     * whole point: the layer really has stopped answering on a server that is still taking players,
+     * and nothing else will say so.
      */
     public void dropPolicyOwnedBy(Plugin disabled) {
         Plugin owner = policyOwner;
@@ -349,10 +358,38 @@ public class SuccessionService {
         this.policyStoodDown = true;
         this.toldNominationDecidesAgain.clear();
         standingAnswers.clear();
-        logger().warning(disabled.getName() + " has been disabled, so its fief succession policy is "
-                + "no longer in force. Every fief on this server now passes to its holder's named "
-                + "heir, then to its longest-standing member, then back to the faction that granted "
-                + "it, and no fief follows its realm's government form.");
+        if (serverIsStopping()) {
+            return;
+        }
+        logger().warning(disabled.getName() + " has been disabled while the server is running, so its "
+                + "fief succession policy is no longer in force. Every fief on this server now passes "
+                + "to its holder's named heir, then to its longest-standing member, then back to the "
+                + "faction that granted it, and no fief follows its realm's government form.");
+    }
+
+    /**
+     * Whether this disable is the server going down, rather than something going wrong.
+     *
+     * <p>Paper sets the flag behind {@link org.bukkit.Server#isStopping()} at the top of
+     * {@code MinecraftServer.stopServer}, before that method calls {@code disablePlugins}. So it
+     * already reads true for every {@code PluginDisableEvent} of a shutdown, and false for a
+     * mid-session disable, a {@code /reload}, or a plugin that disables itself after a fault. Paper's
+     * own plugin manager asks the same question the same way, to decide whether a disabling plugin's
+     * chunk tickets are still worth releasing.
+     *
+     * <p>Two cheaper-looking signals were rejected, because both answer the wrong question. Our own
+     * enabled flag answers yes at every one of these moments, shutdown included: the event is
+     * dispatched <em>before</em> the disabling plugin's {@code onDisable}, and Fiefs is disabled after
+     * its dependents in any case, so a check on it would call every shutdown a mid-session disable and
+     * leave the alarm exactly where it was. A flag set from our own {@code onDisable} is later still,
+     * for the same reason: by the time Fiefs is told, every plugin that registered anything with it
+     * has already gone.
+     *
+     * <p>Paper-only, which costs nothing here. This plugin compiles against paper-api and Patriam
+     * runs Paper, for the reason the pom already records.
+     */
+    private boolean serverIsStopping() {
+        return plugin.getServer().isStopping();
     }
 
     // ---- succession -------------------------------------------------------

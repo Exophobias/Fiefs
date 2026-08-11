@@ -43,6 +43,12 @@ public class SuccessionPolicyListener implements Listener {
      * <p>A policy left registered by a plugin that is no longer running is the failure this closes: it
      * would keep being consulted, keep throwing {@link NoClassDefFoundError} out of a departure, and
      * the fief succession that failed would look like a Fiefs bug.
+     *
+     * <p>This is the mirror of the problem above, arriving from the other end of the run. A plugin
+     * that registered a policy is disabled <em>before</em> Fiefs on every clean shutdown, so this
+     * handler fires on every healthy run and only some of those firings are worth a word. Dropping is
+     * always right; saying so at WARNING is right only mid-session. Which of the two this is, and how
+     * that is told apart, is in {@code SuccessionService.dropPolicyOwnedBy}.
      */
     @EventHandler
     public void handle(PluginDisableEvent event) {
