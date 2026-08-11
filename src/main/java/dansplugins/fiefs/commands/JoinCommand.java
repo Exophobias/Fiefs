@@ -4,6 +4,7 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.SuccessionService;
 import dansplugins.fiefs.utils.ArgumentParser;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -20,11 +21,14 @@ import java.util.Arrays;
 public class JoinCommand extends FiefsCommand {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
     private final PersistentData persistentData;
+    private final SuccessionService successionService;
 
-    public JoinCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData) {
+    public JoinCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData,
+                       SuccessionService successionService) {
         super(new ArrayList<>(Arrays.asList("join")), new ArrayList<>(Arrays.asList("fiefs.join")));
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
         this.persistentData = persistentData;
+        this.successionService = successionService;
     }
 
     @Override
@@ -75,6 +79,12 @@ public class JoinCommand extends FiefsCommand {
 
         persistentData.markDirty();
         player.sendMessage(Component.text("Joined.", NamedTextColor.GREEN));
+
+        // A new member can move who stands to inherit, and this is the path a holder would use to
+        // pack an elective fief with a bloc before departing. It is not gated - only a holder can
+        // invite, so gating it would gate the fief's only route in - but the flip it causes is public
+        // inside the fief the moment it happens.
+        successionService.refreshSuccession(targetFief);
 
         // TODO: alert fief members that the player has joined the fief
 

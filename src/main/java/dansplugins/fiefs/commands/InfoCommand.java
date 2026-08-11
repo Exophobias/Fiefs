@@ -4,6 +4,7 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.SuccessionService;
 import dansplugins.fiefs.utils.ArgumentParser;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -20,11 +21,14 @@ import java.util.Arrays;
 public class InfoCommand extends FiefsCommand {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
     private final PersistentData persistentData;
+    private final SuccessionService successionService;
 
-    public InfoCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData) {
+    public InfoCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData,
+                       SuccessionService successionService) {
         super(new ArrayList<>(Arrays.asList("info")), new ArrayList<>(Arrays.asList("fiefs.info")));
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
         this.persistentData = persistentData;
+        this.successionService = successionService;
     }
 
     @Override
@@ -53,7 +57,7 @@ public class InfoCommand extends FiefsCommand {
                 return false;
             }
 
-            persistentData.sendFiefInfoToPlayer(player, fief);
+            persistentData.sendFiefInfoToPlayer(player, fief, successionService);
             return true;
         }
 
@@ -63,7 +67,7 @@ public class InfoCommand extends FiefsCommand {
             return false;
         }
 
-        persistentData.sendFiefInfoToPlayer(player, playersFief);
+        persistentData.sendFiefInfoToPlayer(player, playersFief, successionService);
         return true;
     }
 

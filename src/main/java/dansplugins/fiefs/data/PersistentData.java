@@ -5,6 +5,7 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.SuccessionService;
 import dansplugins.fiefs.utils.UUIDChecker;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -241,7 +242,13 @@ public class PersistentData {
         return count;
     }
 
-    public void sendFiefInfoToPlayer(Player player, Fief playersFief) {
+    /**
+     * @param successionService passed in rather than held as a field, because that service already
+     *        holds this one and a field here would be a construction cycle. The succession line is
+     *        the whole reason it is needed: it is the readout a player types constantly, so it is
+     *        where a government layer that is installed and deciding nothing becomes visible.
+     */
+    public void sendFiefInfoToPlayer(Player player, Fief playersFief, SuccessionService successionService) {
         UUIDChecker uuidChecker = new UUIDChecker();
 
         int cumulativePowerLevel = playersFief.getCumulativePowerLevel();
@@ -254,12 +261,49 @@ public class PersistentData {
                 ? getFactionNameOfFief(playersFief) + " (vacant)"
                 : uuidChecker.findPlayerNameBasedOnUUID(playersFief.getOwnerUUID());
         player.sendMessage(Component.text("Owner: " + holder, NamedTextColor.AQUA));
-        if (playersFief.getHeirUUID() != null) {
-            player.sendMessage(Component.text("Heir: "
-                    + uuidChecker.findPlayerNameBasedOnUUID(playersFief.getHeirUUID()), NamedTextColor.AQUA));
-        }
+        sendSuccessionLine(player, playersFief, successionService);
         player.sendMessage(Component.text("Members: " + playersFief.getNumMembers(), NamedTextColor.AQUA));
         player.sendMessage(Component.text("Power Level: " + cumulativePowerLevel, NamedTextColor.AQUA));
         player.sendMessage(Component.text("Demesne Size: " + getNumChunksClaimedByFief(playersFief) + "/" + cumulativePowerLevel, NamedTextColor.AQUA));
+    }
+
+    /**
+     * Who this fief stands to pass to, and by what rule. <b>Always exactly one line.</b>
+     *
+     * <p>Replaces a conditional {@code Heir:} line that printed nothing at all when no heir was
+     * named, which is the worst of both: a fief with no nomination said nothing about its succession,
+     * so a player had no way to learn that seniority would decide it, and a server whose government
+     * layer had silently stopped deciding looked exactly like one that never had one.
+     *
+     * <p>The two states print visibly different text on a command players type constantly, which is
+     * the anti-silence mechanism as much as it is the readout. With a government layer answering, the
+     * sentence is the rule's own; without one, it is Fiefs' own clause.
+     */
+    private void sendSuccessionLine(Player player, Fief fief, SuccessionService successionService) {
+        SuccessionService.StandingAnswer answer = successionService.standingAnswerFor(fief);
+
+        if (answer.presumptive() == null) {
+            player.sendMessage(Component.text("Succession: nobody, so it would revert to "
+                    + getFactionNameOfFief(fief) + ".", NamedTextColor.AQUA));
+        } else {
+            String name = new UUIDChecker().findPlayerNameBasedOnUUID(answer.presumptive());
+            String line = answer.fromPolicy()
+                    // A sentence somebody else wrote, so it follows a full stop rather than being
+                    // spliced into one of ours with a comma.
+                    ? "Succession: " + name + ". " + SuccessionService.sentence(answer.explanation())
+                    : "Succession: " + name + ", " + answer.explanation() + ".";
+            player.sendMessage(Component.text(line, NamedTextColor.AQUA));
+        }
+
+        // A nomination standing under a form that forbids making one. Ignored rather than cleared,
+        // because clearing is destructive across a temporary change of form and ignoring is a pure
+        // function of the rule in force - but a nomination that exists, is visible, and decides
+        // nothing has to say so, or it reads as the plugin having lost track of it.
+        if (fief.getHeirUUID() != null && !answer.holderMayNameHeir()) {
+            player.sendMessage(Component.text("  A nomination for "
+                    + new UUIDChecker().findPlayerNameBasedOnUUID(fief.getHeirUUID()) + " stands from a "
+                    + "time when this fief's holder could name an heir. It decides nothing now.",
+                    NamedTextColor.GRAY));
+        }
     }
 }

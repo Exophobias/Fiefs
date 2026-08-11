@@ -54,6 +54,13 @@ permissions:
   # commands; the command itself checks that the caller actually holds the fief.
   fiefs.heir:
     default: true
+  # Reading who stands to inherit a fief, and by what rule. Default true and open like the rest of
+  # the fief commands, and deliberately so: this is the readout that tells a player whether their
+  # server's government layer is actually deciding anything, and a check nobody can run is a check
+  # that cannot catch the failure it exists for. The command itself limits the audience to the
+  # fief's members and the head of the faction it is held from.
+  fiefs.succession:
+    default: true
   # A fief's capital is the ground a rising is won and lost on, and naming it is the holder's own
   # business like every other fief command. The command checks that the caller holds the fief and
   # that the fief actually claims the chunk they are standing in.

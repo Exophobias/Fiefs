@@ -4,6 +4,7 @@ import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.SuccessionService;
 import dansplugins.fiefs.utils.UUIDChecker;
 import org.bukkit.Bukkit;
 import net.kyori.adventure.text.Component;
@@ -22,11 +23,14 @@ import java.util.UUID;
 public class KickCommand extends FiefsCommand {
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
     private final PersistentData persistentData;
+    private final SuccessionService successionService;
 
-    public KickCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData) {
+    public KickCommand(MedievalFactionsIntegrator medievalFactionsIntegrator, PersistentData persistentData,
+                       SuccessionService successionService) {
         super(new ArrayList<>(Arrays.asList("kick")), new ArrayList<>(Arrays.asList("fiefs.kick")));
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
         this.persistentData = persistentData;
+        this.successionService = successionService;
     }
 
     @Override
@@ -95,6 +99,9 @@ public class KickCommand extends FiefsCommand {
             target.sendMessage(Component.text("You have been kicked from " + playersFief.getName() + " by " + player.getName() + ".", NamedTextColor.AQUA));
         }
         player.sendMessage(Component.text("Kicked.", NamedTextColor.GREEN));
+        // Removing a member can move who stands to inherit, most obviously when the person kicked was
+        // the presumptive successor.
+        successionService.refreshSuccession(playersFief);
         return true;
     }
 }

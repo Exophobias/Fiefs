@@ -64,6 +64,12 @@ public class LeaveCommand extends FiefsCommand {
                 player.sendMessage(Component.text("Left. " + fief.getName() + " has passed to "
                         + new UUIDChecker().findPlayerNameBasedOnUUID(succession.newOwnerId()) + ".",
                         NamedTextColor.GREEN));
+                // The deciding rule's own sentence, so the departing holder learns what took it and
+                // not merely who. Only on this route: somebody leaving the FACTION is usually not
+                // online to read anything, and the fief itself is told either way.
+                if (succession.explanation() != null) {
+                    player.sendMessage(Component.text("  " + succession.explanation(), NamedTextColor.GRAY));
+                }
             }
             return true;
         }
@@ -72,6 +78,11 @@ public class LeaveCommand extends FiefsCommand {
 
         persistentData.markDirty();
         player.sendMessage(Component.text("Left.", NamedTextColor.GREEN));
+
+        // A member leaving can move who stands to inherit - they may have been the presumptive
+        // successor, or the vote they cast may have been holding somebody up. The fief hears about it
+        // only if the answer actually moved.
+        successionService.refreshSuccession(fief);
 
         // TODO: inform fief members that the player has left the fief
 

@@ -99,6 +99,10 @@ public class FactionEventListener implements Listener {
 
         fief.removeMember(playerId);
         persistentData.markDirty();
+        // Somebody leaving the FACTION stops being eligible to inherit even if a stale fief list still
+        // holds their name, so this is one of the few changes that can move a fief's standing answer
+        // without anybody in the fief doing anything at all. The fief is told only if it moved.
+        successionService.refreshSuccession(fief);
         // TODO: inform fief members that the player left the faction
     }
 

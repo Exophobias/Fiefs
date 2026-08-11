@@ -81,6 +81,12 @@ public class HelpCommand extends FiefsCommand {
     private void sendPageThree(CommandSender sender) {
         sender.sendMessage(Component.text("=== Fiefs Commands Page 3/" + maxPage + "===", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi heir - Name who inherits your fief if you depart.", NamedTextColor.AQUA));
+        // Permission-filtered, unlike the lines around it, because this one is new and there is no
+        // reason to list a command the reader cannot run. The rest of this page predates the
+        // convention and is left alone rather than changed under cover of an unrelated feature.
+        if (sender.hasPermission("fiefs.succession")) {
+            sender.sendMessage(Component.text("/fi succession - See what decides who inherits a fief, and who that is.", NamedTextColor.AQUA));
+        }
         sender.sendMessage(Component.text("/fi grant - Grant one of your faction's fiefs to a member. Head of the faction only.", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi revoke - Take one of your faction's fiefs back. Head of the faction only.", NamedTextColor.AQUA));
     }

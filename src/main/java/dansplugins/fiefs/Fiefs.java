@@ -8,6 +8,7 @@ import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.listeners.FactionEventListener;
 import dansplugins.fiefs.listeners.InteractionListener;
 import dansplugins.fiefs.listeners.MoveListener;
+import dansplugins.fiefs.listeners.SuccessionPolicyListener;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
 import dansplugins.fiefs.services.ChunkService;
 import dansplugins.fiefs.services.CommandService;
@@ -49,7 +50,10 @@ public class Fiefs extends JavaPlugin {
     private final StorageService storageService = new StorageService(configService, this, persistentData, logger, medievalFactionsIntegrator);
     private final Scheduler scheduler = new Scheduler(logger, this, storageService);
     private final ChunkService chunkService = new ChunkService(persistentData, medievalFactionsIntegrator, configService);
-    private final SuccessionService successionService = new SuccessionService(medievalFactionsIntegrator, persistentData);
+    // Takes the plugin rather than a java.util.logging.Logger, so the logger is resolved lazily. This
+    // service reports at SEVERE and WARNING about another plugin's rule, so it must never route
+    // through the debug-gated dansplugins.fiefs.utils.Logger above.
+    private final SuccessionService successionService = new SuccessionService(medievalFactionsIntegrator, persistentData, this);
 
     /**
      * Whether {@link StorageService#load()} completed, i.e. whether {@link #persistentData} actually
@@ -160,7 +164,7 @@ public class Fiefs extends JavaPlugin {
     }
 
     public FiefsAPI getAPI() {
-        return new FiefsAPI(persistentData);
+        return new FiefsAPI(persistentData, successionService);
     }
 
     /**
@@ -194,7 +198,11 @@ public class Fiefs extends JavaPlugin {
         ArrayList<Listener> listeners = new ArrayList<>(Arrays.asList(
                 new MoveListener(configService, chunkService, medievalFactionsIntegrator),
                 new InteractionListener(chunkService, persistentData, logger, this),
-                new FactionEventListener(persistentData, successionService)
+                new FactionEventListener(persistentData, successionService),
+                // Reports which succession ladder is actually in force once the whole server is up,
+                // and drops a policy whose owning plugin stops functioning. Events rather than a
+                // scheduled check: this feature adds no timer, no sweep and no clock.
+                new SuccessionPolicyListener(successionService)
         ));
         PluginManager pluginManager = getServer().getPluginManager();
         listeners.forEach(listener -> pluginManager.registerEvents(listener, this));
@@ -214,17 +222,18 @@ public class Fiefs extends JavaPlugin {
                 new DisbandCommand(medievalFactionsIntegrator, persistentData),
                 new FlagsCommand(medievalFactionsIntegrator, persistentData),
                 new GrantCommand(medievalFactionsIntegrator, persistentData),
-                new HeirCommand(medievalFactionsIntegrator, persistentData),
+                new HeirCommand(medievalFactionsIntegrator, persistentData, successionService),
                 new HelpCommand(),
-                new InfoCommand(medievalFactionsIntegrator, persistentData),
+                new InfoCommand(medievalFactionsIntegrator, persistentData, successionService),
                 new InviteCommand(medievalFactionsIntegrator, persistentData),
-                new JoinCommand(medievalFactionsIntegrator, persistentData),
-                new KickCommand(medievalFactionsIntegrator, persistentData),
+                new JoinCommand(medievalFactionsIntegrator, persistentData, successionService),
+                new KickCommand(medievalFactionsIntegrator, persistentData, successionService),
                 new LeaveCommand(medievalFactionsIntegrator, persistentData, successionService),
                 new ListCommand(medievalFactionsIntegrator, persistentData),
                 new MembersCommand(medievalFactionsIntegrator, persistentData),
                 new RenameCommand(medievalFactionsIntegrator, persistentData),
                 new RevokeCommand(medievalFactionsIntegrator, persistentData),
+                new SuccessionCommand(medievalFactionsIntegrator, persistentData, successionService),
                 new TransferCommand(medievalFactionsIntegrator, persistentData),
                 new UnclaimCommand(medievalFactionsIntegrator, persistentData, chunkService)
         ));
