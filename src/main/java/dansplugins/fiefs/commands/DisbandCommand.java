@@ -2,6 +2,7 @@ package dansplugins.fiefs.commands;
 
 import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
+import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
 import net.kyori.adventure.text.Component;
@@ -50,6 +51,8 @@ public class DisbandCommand extends FiefsCommand {
         }
 
         persistentData.removeFief(fief);
+        HeraldryPresence.publicationChanged(
+                fief.getId(), HeraldryPresence.PublicationChange.EXISTENCE);
         player.sendMessage(Component.text("Fief disbanded.", NamedTextColor.GREEN));
         return true;
     }

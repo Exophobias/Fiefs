@@ -4,6 +4,7 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import org.bukkit.plugin.Plugin;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -54,6 +55,21 @@ public final class HeraldryPresence {
 
     /** So the absence notice is printed once per startup rather than once per caller. */
     private static final AtomicBoolean ANNOUNCED_ABSENT = new AtomicBoolean();
+
+    /** Owner-side lifecycle changes, expressed without loading PatriamHeraldry when it is absent. */
+    public enum PublicationChange {
+        NAME,
+        EXISTENCE,
+        OTHER
+    }
+
+    @FunctionalInterface
+    private interface PublicationInvalidator {
+        void invalidate(UUID fief, PublicationChange change);
+    }
+
+    /** No-op until the optional bridge has linked successfully. */
+    private static PublicationInvalidator invalidator = (fief, change) -> { };
 
     private HeraldryPresence() {
     }
@@ -107,6 +123,7 @@ public final class HeraldryPresence {
         try {
             // The only mention of FiefSubjectResolver in the plugin, and the only place it is loaded.
             FiefSubjectResolver.register(plugin, persistentData, medievalFactionsIntegrator);
+            invalidator = FiefSubjectResolver::publicationChanged;
             plugin.getLogger().info("Registered fiefs as a PatriamHeraldry subject, so a fief may bear "
                     + "a coat of arms.");
             return true;
@@ -118,6 +135,18 @@ public final class HeraldryPresence {
                     + "resolver could not be registered, so a fief cannot bear a coat of arms. "
                     + "Nothing else about Fiefs is affected.", e);
             return false;
+        }
+    }
+
+    /**
+     * Tell the optional heraldry bridge that a fief was renamed, removed, or restored.
+     *
+     * <p>Safe to call unconditionally from ordinary Fiefs code. When PatriamHeraldry is absent the
+     * installed invalidator is a no-op and no foreign type is linked.
+     */
+    public static void publicationChanged(UUID fief, PublicationChange change) {
+        if (fief != null && change != null) {
+            invalidator.invalidate(fief, change);
         }
     }
 }

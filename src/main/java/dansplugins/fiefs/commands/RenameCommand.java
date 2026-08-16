@@ -2,6 +2,7 @@ package dansplugins.fiefs.commands;
 
 import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
+import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
@@ -88,6 +89,8 @@ public class RenameCommand extends FiefsCommand {
         playersFief.setName(newName);
 
         persistentData.markDirty();
+        HeraldryPresence.publicationChanged(
+                playersFief.getId(), HeraldryPresence.PublicationChange.NAME);
         player.sendMessage(Component.text("Fief renamed.", NamedTextColor.GREEN));
         return true;
     }

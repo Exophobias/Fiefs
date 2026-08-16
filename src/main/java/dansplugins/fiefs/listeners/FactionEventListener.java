@@ -4,6 +4,7 @@ import com.dansplugins.factionsystem.api.event.FactionDisbandedEvent;
 import com.dansplugins.factionsystem.api.event.FactionMemberLeftEvent;
 import com.dansplugins.factionsystem.api.event.FactionUnclaimedChunkEvent;
 import dansplugins.fiefs.data.PersistentData;
+import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.services.SuccessionService;
@@ -119,6 +120,8 @@ public class FactionEventListener implements Listener {
             // TODO: inform fief members that the faction has been disbanded
 
             persistentData.removeFief(fief);
+            HeraldryPresence.publicationChanged(
+                    fief.getId(), HeraldryPresence.PublicationChange.EXISTENCE);
         }
     }
 }

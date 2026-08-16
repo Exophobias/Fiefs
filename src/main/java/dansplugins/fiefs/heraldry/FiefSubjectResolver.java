@@ -3,10 +3,12 @@ package dansplugins.fiefs.heraldry;
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionView;
 import com.github.exophobias.patriamheraldry.api.SubjectKey;
+import com.github.exophobias.patriamheraldry.api.SubjectPublicationChangedEvent;
 import com.github.exophobias.patriamheraldry.api.SubjectResolver;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.Fief;
+import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -76,6 +78,17 @@ public final class FiefSubjectResolver implements SubjectResolver {
                 ServicePriority.Normal);
     }
 
+    /** Publish an owner-side lifecycle invalidation after the Fiefs store has changed. */
+    static void publicationChanged(UUID fief, HeraldryPresence.PublicationChange change) {
+        SubjectPublicationChangedEvent.Reason reason = switch (change) {
+            case NAME -> SubjectPublicationChangedEvent.Reason.NAME;
+            case EXISTENCE -> SubjectPublicationChangedEvent.Reason.EXISTENCE;
+            case OTHER -> SubjectPublicationChangedEvent.Reason.OTHER;
+        };
+        Bukkit.getPluginManager().callEvent(new SubjectPublicationChangedEvent(
+                SubjectKey.fief(fief.toString()), reason));
+    }
+
     @Override
     public SubjectKey.Type type() {
         return SubjectKey.Type.FIEF;
@@ -126,6 +139,12 @@ public final class FiefSubjectResolver implements SubjectResolver {
         return faction != null && player.getUniqueId().equals(faction.getPrimaryOwnerId());
     }
 
+    /** Holder and faction head authority is natural, so herald bypass tools remain self-dealing. */
+    @Override
+    public boolean hasNaturalAuthority(Player player, SubjectKey subject) {
+        return mayAdminister(player, subject);
+    }
+
     @Override
     public Optional<String> displayName(SubjectKey subject) {
         Fief fief = fiefOf(subject);
@@ -160,9 +179,9 @@ public final class FiefSubjectResolver implements SubjectResolver {
     /**
      * Whether a fief still answers to this id.
      *
-     * <p>Overridden rather than left to the interface default, which routes through
-     * {@link #displayName} and so builds an Optional around a name in order to throw it away. The
-     * answer is the same; this asks the question directly.
+     * <p>Overridden rather than left to the conservative interface default, which deliberately says
+     * true because an older resolver cannot prove deletion. Fiefs owns this lifecycle and can answer
+     * the question directly, which enables safe automatic retirement.
      */
     @Override
     public boolean exists(SubjectKey subject) {
@@ -211,9 +230,9 @@ public final class FiefSubjectResolver implements SubjectResolver {
      *
      * <p>Null for three different things on purpose, because PatriamHeraldry turns all three into the
      * same "no such fief" and none of them is ours to fix: a subject of another type handed to this
-     * resolver, an id that is not a UUID, and a UUID for a fief that has been disbanded. The last is
-     * expected -- the armorial keeps a disbanded subject's arms so that one which comes back under the
-     * same id gets them back -- and it is why nothing here deletes anything.
+     * resolver, an id that is not a UUID, and a UUID for a fief that has been disbanded. A false
+     * answer is Fiefs' authoritative lifecycle fact; PatriamHeraldry may use it to move a complete
+     * active record into its permanent retirement ledger. This resolver still deletes nothing itself.
      */
     private Fief fiefOf(SubjectKey subject) {
         if (subject == null || subject.type() != SubjectKey.Type.FIEF) {
@@ -229,7 +248,7 @@ public final class FiefSubjectResolver implements SubjectResolver {
             if (unreadableIdsReported.add(subject.id())) {
                 plugin.getLogger().warning("A coat of arms is filed under the fief id '" + subject.id()
                         + "', which is not a fief id this server could have issued. It belongs to no "
-                        + "fief and will be reported as orphaned.");
+                        + "fief and will be reported absent for heraldry retirement.");
             }
             return null;
         }

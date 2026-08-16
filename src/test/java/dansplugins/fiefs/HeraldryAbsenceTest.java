@@ -181,13 +181,26 @@ class HeraldryAbsenceTest {
     @Test
     @DisplayName("the guard loads and answers false when PatriamHeraldry is not installed")
     void theGuardAnswersWithoutTheApi() throws Exception {
-        Class<?> presence = Class.forName(PRESENCE, true, heraldryless());
+        HeraldrylessLoader loader = heraldryless();
+        Class<?> presence = Class.forName(PRESENCE, true, loader);
         Plugin plugin = MockBukkit.createMockPlugin("Fiefs");
 
         Method installed = presence.getMethod("installed", Plugin.class);
 
         assertEquals(false, installed.invoke(null, plugin),
                 "the guard must return an answer rather than throw one");
+
+        // Ordinary Fiefs code calls this unconditionally after owner-side mutations. Exercise the
+        // method body as well as its api-free signature: the default invalidator must stay a true
+        // no-op and must not resolve the guarded bridge merely because a fief was disbanded.
+        Class<?> changeType = loader.loadClass(PRESENCE + "$PublicationChange");
+        Object existence = java.util.Arrays.stream(changeType.getEnumConstants())
+                .filter(value -> ((Enum<?>) value).name().equals("EXISTENCE"))
+                .findFirst()
+                .orElseThrow();
+        Method publicationChanged = presence.getMethod(
+                "publicationChanged", java.util.UUID.class, changeType);
+        publicationChanged.invoke(null, java.util.UUID.randomUUID(), existence);
     }
 
     @Test

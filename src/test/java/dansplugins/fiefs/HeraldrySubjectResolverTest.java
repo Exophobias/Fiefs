@@ -2,9 +2,13 @@ package dansplugins.fiefs;
 
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
+import com.dansplugins.factionsystem.api.event.FactionDisbandedEvent;
 import com.github.exophobias.patriamheraldry.api.SubjectKey;
+import com.github.exophobias.patriamheraldry.api.SubjectPublicationChangedEvent;
 import com.github.exophobias.patriamheraldry.api.SubjectResolver;
 import dansplugins.fiefs.objects.Fief;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.ServicePriority;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +18,8 @@ import org.mockbukkit.mockbukkit.MockBukkit;
 import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.entity.PlayerMock;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +42,8 @@ class HeraldrySubjectResolverTest {
     private FakeMedievalFactionsApi api;
     private PlayerMock holder;
     private FactionId factionId;
+    private List<SubjectPublicationChangedEvent> publicationChanges;
+    private List<Boolean> existenceAnswersAtPublication;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +60,17 @@ class HeraldrySubjectResolverTest {
 
         fiefs = MockBukkit.load(Fiefs.class);
         holder.performCommand("fi create \"Ashford Mill\"");
+
+        publicationChanges = new ArrayList<>();
+        existenceAnswersAtPublication = new ArrayList<>();
+        SubjectResolver publishedResolver = resolver();
+        server.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void publicationChanged(SubjectPublicationChangedEvent event) {
+                publicationChanges.add(event);
+                existenceAnswersAtPublication.add(publishedResolver.exists(event.getSubject()));
+            }
+        }, fiefs);
     }
 
     @AfterEach
@@ -72,6 +91,16 @@ class HeraldrySubjectResolverTest {
 
     private SubjectKey keyOfAshford() {
         return SubjectKey.fief(ashford().getId().toString());
+    }
+
+    private void assertOnlyPublication(SubjectKey subject,
+                                       SubjectPublicationChangedEvent.Reason reason,
+                                       boolean existedWhenPublished) {
+        assertEquals(1, publicationChanges.size(), "the owner plugin must publish exactly one change");
+        assertEquals(subject, publicationChanges.getFirst().getSubject());
+        assertEquals(reason, publicationChanges.getFirst().getReason());
+        assertEquals(List.of(existedWhenPublished), existenceAnswersAtPublication,
+                "publish only after the owner-side mutation is visible to its resolver");
     }
 
     @Test
@@ -203,5 +232,28 @@ class HeraldrySubjectResolverTest {
                 "the display name follows the rename, which is all it is for");
         assertEquals(Optional.of(before), resolver().byName("Ashford Keep"));
         assertTrue(resolver().byName("Ashford Mill").isEmpty(), "the old name answers to nothing");
+        assertOnlyPublication(before, SubjectPublicationChangedEvent.Reason.NAME, true);
+    }
+
+    @Test
+    @DisplayName("disbanding a fief publishes its stable id as absent after removal")
+    void disbandPublishesExistenceAfterRemoval() {
+        SubjectKey before = keyOfAshford();
+
+        assertTrue(holder.performCommand("fi disband"));
+
+        assertFalse(resolver().exists(before));
+        assertOnlyPublication(before, SubjectPublicationChangedEvent.Reason.EXISTENCE, false);
+    }
+
+    @Test
+    @DisplayName("a faction disband publishes every removed fief as absent")
+    void factionDisbandPublishesExistenceAfterRemoval() {
+        SubjectKey before = keyOfAshford();
+
+        server.getPluginManager().callEvent(new FactionDisbandedEvent(factionId));
+
+        assertFalse(resolver().exists(before));
+        assertOnlyPublication(before, SubjectPublicationChangedEvent.Reason.EXISTENCE, false);
     }
 }
