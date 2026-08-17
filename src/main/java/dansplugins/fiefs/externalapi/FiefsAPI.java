@@ -33,6 +33,15 @@ public class FiefsAPI {
      */
     private final SuccessionService successionService;
 
+    /**
+     * Retains the original API constructor for consumers that only use fief lookups.
+     * Succession-policy operations require the plugin-provided API instance from Bukkit's
+     * ServicesManager, which is constructed with the shared succession service.
+     */
+    public FiefsAPI(PersistentData persistentData) {
+        this(persistentData, null);
+    }
+
     public FiefsAPI(PersistentData persistentData, SuccessionService successionService) {
         this.persistentData = persistentData;
         this.successionService = successionService;

@@ -76,11 +76,13 @@ public class HelpCommand extends FiefsCommand {
         sender.sendMessage(Component.text("/fi transfer - Transfer your fief to another player.", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi flags - View and alter your fief's configuration.", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi config - View and alter this plugin's config options.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi whois - Check which fief a player is a member of.", NamedTextColor.AQUA));
     }
 
     private void sendPageThree(CommandSender sender) {
         sender.sendMessage(Component.text("=== Fiefs Commands Page 3/" + maxPage + "===", NamedTextColor.AQUA));
         sender.sendMessage(Component.text("/fi heir - Name who inherits your fief if you depart.", NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("/fi capital - View or name where your fief's seat stands.", NamedTextColor.AQUA));
         // Permission-filtered, unlike the lines around it, because this one is new and there is no
         // reason to list a command the reader cannot run. The rest of this page predates the
         // convention and is left alone rather than changed under cover of an unrelated feature.

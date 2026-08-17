@@ -4,6 +4,7 @@ All commands use `/fi` or `/fiefs` as the base. Fiefs requires Medieval Factions
 
 | Command | Description | Permission |
 |---------|-------------|------------|
+| `/fi` | View plugin version and info. | `fiefs.default` |
 | `/fi help {1\|2\|3}` | View command list (3 pages). | `fiefs.help` |
 | `/fi list` | List the fiefs in your faction. | `fiefs.list` |
 | `/fi create` | Create a new fief in your faction. | `fiefs.create` |
@@ -16,6 +17,8 @@ All commands use `/fi` or `/fiefs` as the base. Fiefs requires Medieval Factions
 | `/fi kick` | Kick a player from your fief. | `fiefs.kick` |
 | `/fi transfer` | Transfer ownership of your fief to another player. | `fiefs.transfer` |
 | `/fi heir [playerName\|clear]` | Name who inherits your fief if you depart, or show the standing nomination. | `fiefs.heir` |
+| `/fi succession ["fiefName"]` | Show who stands to inherit a fief and which rule decides it. | `fiefs.succession` |
+| `/fi capital [set]` | View your fief's capital or set it to the claimed chunk where you stand. | `fiefs.capital` |
 | `/fi grant "fiefName" (playerName)` | Grant one of your faction's fiefs to a member of it. Head of the faction only. | `fiefs.grant` |
 | `/fi revoke "fiefName"` | Take one of your faction's fiefs back into the faction's hands. Head of the faction only. | `fiefs.revoke` |
 | `/fi desc` | Set a description for your fief. | `fiefs.desc` |
@@ -25,6 +28,7 @@ All commands use `/fi` or `/fiefs` as the base. Fiefs requires Medieval Factions
 | `/fi checkclaim` | Check which fief owns the chunk you are standing in. | `fiefs.checkclaim` |
 | `/fi flags` | View and alter your fief's configuration flags. | `fiefs.flags` |
 | `/fi config` | View and alter plugin config options. | `fiefs.config` |
+| `/fi whois <player>` | Check which fief a player is a member of. | `fiefs.whois` |
 
 ## Succession
 

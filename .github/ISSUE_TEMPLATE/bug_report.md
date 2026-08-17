@@ -1,40 +1,53 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+name: Bug Report
+about: Report an issue to help us improve Fiefs.
+title: "[Bug] "
+labels: ["bug"]
+assignees: []
 ---
 
----
-name: Bug report
-about: Create a report to help us improve
-title: Bug Report
-labels: ''
-assignees: ''
+## Description
+*A clear and concise description of the bug.*
 
----
+## Steps to Reproduce
+*Provide step-by-step instructions to reproduce the issue, including the exact commands used.*
+1.
+2.
+3.
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Expected Behavior
+*Describe what you expected to happen instead of the bug.*
 
----
-**To Reproduce**
-Steps to reproduce the behavior:
+## Actual Behavior
+*Describe what actually happened, including any error messages or console output if applicable.*
 
----
-**Expected behavior**
-# A clear and concise description of what you expected to happen.
+## Screenshots or Logs
+*If applicable, add screenshots or server logs to help explain the issue.*
 
----
-**Screenshots or Logs**
-If applicable, add screenshots to help explain your problem.
+## Environment Details
 
-**Plugin version**
+### Java Version:
+- [ ] 8
+- [ ] 11
+- [ ] 17
+- [ ] 21
+- [ ] Other (Specify: ___)
 
----
-**Spigot/Paper version** _(Please Specify which server software you are using)_
- - [ ] 1.16.x
- - [ ] 1.17.x
- - [ ] 1.18.x
+### Fiefs Version:
+- [ ] 0.12.x
+- [ ] 0.11.x
+- [ ] Other (Specify: ___)
+
+### Server Software:
+- [ ] Spigot
+- [ ] Paper
+- [ ] Other (Specify: ___)
+
+### Minecraft Version:
+*For example, 1.17.1.*
+
+### Medieval Factions Version:
+*Fiefs depends on Medieval Factions, so its version matters for most reports.*
+
+## Additional Context
+*Add any other context or relevant details about the issue.*

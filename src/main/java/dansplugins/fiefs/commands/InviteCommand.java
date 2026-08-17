@@ -85,6 +85,8 @@ public class InviteCommand extends FiefsCommand {
             return false;
         }
 
+        // Look the target's fief up by their UUID — the String overload matches on fief name,
+        // which is never the player's name. #145
         Fief targetsFief = persistentData.getFief(targetUUID);
         if (targetsFief != null) {
             player.sendMessage(Component.text("That player is already in " + targetsFief.getName(), NamedTextColor.RED));

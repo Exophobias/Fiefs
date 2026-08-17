@@ -235,7 +235,8 @@ public class Fiefs extends JavaPlugin {
                 new RevokeCommand(medievalFactionsIntegrator, persistentData),
                 new SuccessionCommand(medievalFactionsIntegrator, persistentData, successionService),
                 new TransferCommand(medievalFactionsIntegrator, persistentData),
-                new UnclaimCommand(medievalFactionsIntegrator, persistentData, chunkService)
+                new UnclaimCommand(medievalFactionsIntegrator, persistentData, chunkService),
+                new WhoisCommand(persistentData)
         ));
         commandService.initialize(commands, "That command wasn't found.");
     }

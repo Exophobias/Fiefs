@@ -84,9 +84,11 @@ public class KickCommand extends FiefsCommand {
             return false;
         }
 
-        // getFief(String) matches FIEF names, so passing a player name here never matched and this
-        // command failed every time. The membership test is what was actually meant.
-        if (!playersFief.isMember(targetUUID)) {
+        // Look the target's fief up by their UUID — the String overload matches on fief name,
+        // which is never the player's name. #144
+        Fief targetsFief = persistentData.getFief(targetUUID);
+        // Fief names are mutable; Patriam's stable ids are the authoritative identity.
+        if (targetsFief == null || !targetsFief.getId().equals(playersFief.getId())) {
             player.sendMessage(Component.text("That player is not in your fief.", NamedTextColor.RED));
             return false;
         }

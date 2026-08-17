@@ -79,3 +79,5 @@ permissions:
     default: true
   fiefs.config:
     default: op
+  fiefs.whois:
+    default: true

@@ -29,7 +29,7 @@ public class DescCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        commandSender.sendMessage(Component.text("Usage: /fiefs desc 'new description'", NamedTextColor.RED));
+        commandSender.sendMessage(Component.text("Usage: /fiefs desc \"new description\"", NamedTextColor.RED));
         return false;
     }
 

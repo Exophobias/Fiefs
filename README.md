@@ -56,7 +56,7 @@ Windows:
 
     mvn clean package
 
-If you see `BUILD SUCCESS`, the project has built successfully. There are currently no automated unit tests in this repository.
+If you see `BUILD SUCCESS`, the project has built successfully. `mvn clean package` also runs the JUnit test suite under `src/test/`.
 
 ## Development
 

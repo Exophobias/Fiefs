@@ -17,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,19 +41,34 @@ public class StorageService {
     private final PersistentData persistentData;
     private final Logger logger;
     private final MedievalFactionsIntegrator medievalFactionsIntegrator;
+    private final Path dataFolderOverride;
 
     private final static String FIEFS_FILE_NAME = "fiefs.json";
     private final static String CLAIMED_CHUNKS_FILE_NAME = "claimedChunks.json";
     private final static Type LIST_MAP_TYPE = new TypeToken<ArrayList<HashMap<String, String>>>(){}.getType();
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
+    // Defense in depth for callers other than Fiefs.onEnable(): production loads also throw so the
+    // plugin's own loaded flag remains false, but a caller that catches that failure still must not
+    // be able to overwrite the unreadable file with stale or empty in-memory state.
+    private boolean loadCompletedCleanly = true;
 
     public StorageService(ConfigService configService, Fiefs fiefs, PersistentData persistentData, Logger logger, MedievalFactionsIntegrator medievalFactionsIntegrator) {
+        this(configService, fiefs, persistentData, logger, medievalFactionsIntegrator, null);
+    }
+
+    /**
+     * Test seam for keeping storage writes inside a caller-owned temporary directory.
+     * Production always uses {@link Fiefs#getDataFolder()} through the public constructor.
+     */
+    StorageService(ConfigService configService, Fiefs fiefs, PersistentData persistentData, Logger logger,
+                   MedievalFactionsIntegrator medievalFactionsIntegrator, Path dataFolderOverride) {
         this.configService = configService;
         this.fiefs = fiefs;
         this.persistentData = persistentData;
         this.logger = logger;
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
+        this.dataFolderOverride = dataFolderOverride;
     }
 
     /**
@@ -74,14 +88,22 @@ public class StorageService {
      *
      * <p>Previously hardcoded to "./plugins/Fiefs/", which assumes the server's plugin directory is
      * named "plugins" and sits in the working directory. Bukkit already tells a plugin where its data
-     * lives; using that also means tests get an isolated temp folder rather than writing into the
-     * repository.
+     * lives. Focused tests supply an isolated data-folder override through the package-private
+     * constructor instead of writing into a real server-style directory.
      */
     private File dataFile(String name) {
+        if (dataFolderOverride != null) {
+            return dataFolderOverride.resolve(name).toFile();
+        }
         return new File(fiefs.getDataFolder(), name);
     }
 
     public void save() {
+        if (!loadCompletedCleanly) {
+            System.out.println("ERROR: skipping save because the last load did not complete cleanly. " +
+                    "Fix " + FIEFS_FILE_NAME + "/" + CLAIMED_CHUNKS_FILE_NAME + " and restart to try again.");
+            return;
+        }
         saveFiefs();
         saveClaimedChunks();
         if (configService.hasBeenAltered()) {
@@ -91,8 +113,17 @@ public class StorageService {
     }
 
     public void load() {
+        loadCompletedCleanly = true;
         loadFiefs();
         loadClaimedChunks();
+    }
+
+    /**
+     * For tests: whether both load() calls this session parsed their files fully,
+     * without needing to reach into the private flag directly.
+     */
+    boolean isLoadCompletedCleanly() {
+        return loadCompletedCleanly;
     }
 
     private void saveFiefs() {
@@ -143,7 +174,7 @@ public class StorageService {
                 Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
-            logger.log("Failed to save " + fileName + ": " + e);
+            log("Failed to save " + fileName + ": " + e);
             System.out.println("[Fiefs] ERROR: failed to save " + fileName + ": " + e);
         }
     }
@@ -166,23 +197,60 @@ public class StorageService {
      * next save, for the reason set out in {@link #persistMintedIds}.
      */
     private void loadFiefs() {
-        persistentData.clearFiefs();
-        quarantinedFiefs.clear();
+        applyFiefs(dataFile(FIEFS_FILE_NAME), true);
+    }
 
-        ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(FIEFS_FILE_NAME));
+    private void loadClaimedChunks() {
+        applyClaimedChunks(dataFile(CLAIMED_CHUNKS_FILE_NAME), true);
+    }
 
+    /** Package-private entry point retained for focused storage tests. */
+    void applyFiefs(String filename) {
+        applyFiefs(new File(filename), false);
+    }
+
+    /**
+     * Reads and constructs into temporary collections before replacing live state.
+     *
+     * <p>A failure to read the file itself leaves both live and quarantined state untouched. Normal
+     * startup rethrows that failure so {@code Fiefs.loaded} is never set; the package-private test
+     * entry point records the unsafe state and returns, matching the upstream diagnostic API.
+     * Individual bad rows are different: they are retained verbatim in quarantine while every good
+     * row remains usable.
+     */
+    private void applyFiefs(File file, boolean failLoudly) {
+        final ArrayList<HashMap<String, String>> data;
+        try {
+            data = loadDataFromFilename(file);
+        } catch (RuntimeException e) {
+            loadCompletedCleanly = false;
+            if (failLoudly) {
+                throw e;
+            }
+            return;
+        }
+
+        List<Fief> loaded = new ArrayList<>();
+        List<Map<String, String>> quarantined = new ArrayList<>();
         int minted = 0;
-        for (Map<String, String> fiefData : data){
+        for (Map<String, String> fiefData : data) {
             try {
                 Fief fief = new Fief(fiefData, medievalFactionsIntegrator, logger);
-                persistentData.addFief(fief);
+                loaded.add(fief);
                 if (fief.hasMintedId()) {
                     minted++;
                 }
             } catch (RuntimeException e) {
-                quarantine(quarantinedFiefs, fiefData, FIEFS_FILE_NAME, e);
+                quarantine(quarantined, fiefData, FIEFS_FILE_NAME, e);
             }
         }
+
+        persistentData.clearFiefs();
+        for (Fief fief : loaded) {
+            persistentData.addFief(fief);
+        }
+        quarantinedFiefs.clear();
+        quarantinedFiefs.addAll(quarantined);
         persistMintedIds(minted);
     }
 
@@ -206,35 +274,56 @@ public class StorageService {
         String message = "[Fiefs] " + minted + " fief(s) predated stable fief ids and have each been "
                 + "given one. Rewriting " + FIEFS_FILE_NAME + " now so the ids survive an unclean "
                 + "shutdown. This happens once.";
-        logger.log(message);
+        log(message);
         System.out.println(message);
         saveFiefs();
     }
 
-    private void loadClaimedChunks() {
-        persistentData.clearClaimedChunks();
-        quarantinedChunks.clear();
+    void applyClaimedChunks(String filename) {
+        applyClaimedChunks(new File(filename), false);
+    }
 
-        ArrayList<HashMap<String, String>> data = loadDataFromFilename(dataFile(CLAIMED_CHUNKS_FILE_NAME));
+    private void applyClaimedChunks(File file, boolean failLoudly) {
+        final ArrayList<HashMap<String, String>> data;
+        try {
+            data = loadDataFromFilename(file);
+        } catch (RuntimeException e) {
+            loadCompletedCleanly = false;
+            if (failLoudly) {
+                throw e;
+            }
+            return;
+        }
 
-        for (Map<String, String> claimedChunkData : data){
+        List<ClaimedChunk> loaded = new ArrayList<>();
+        List<Map<String, String>> quarantined = new ArrayList<>();
+        for (Map<String, String> claimedChunkData : data) {
             try {
-                ClaimedChunk claimedChunk = new ClaimedChunk(claimedChunkData);
-                persistentData.addChunk(claimedChunk);
+                loaded.add(new ClaimedChunk(claimedChunkData));
             } catch (RuntimeException e) {
-                quarantine(quarantinedChunks, claimedChunkData, CLAIMED_CHUNKS_FILE_NAME, e);
+                quarantine(quarantined, claimedChunkData, CLAIMED_CHUNKS_FILE_NAME, e);
             }
         }
+
+        persistentData.clearClaimedChunks();
+        for (ClaimedChunk claimedChunk : loaded) {
+            persistentData.addChunk(claimedChunk);
+        }
+        quarantinedChunks.clear();
+        quarantinedChunks.addAll(quarantined);
     }
 
     /** Keep an unreadable row aside, and say so loudly enough that somebody fixes it. */
     private void quarantine(List<Map<String, String>> held, Map<String, String> row,
                             String fileName, RuntimeException cause) {
-        held.add(new HashMap<>(row));
+        // A literal null is valid JSON and therefore reaches row-level handling rather than the
+        // whole-file parser catch. Preserve it as null; trying to copy it would itself throw and
+        // turn a safely quarantinable row into a failed startup.
+        held.add(row == null ? null : new HashMap<>(row));
         String message = "[Fiefs] WARNING: one entry in " + fileName + " could not be read and has "
                 + "been skipped. It is kept and will be written back unchanged, so nothing is lost. "
                 + "Fix or remove it: " + row + " (" + cause + ")";
-        logger.log(message);
+        log(message);
         System.out.println(message);
     }
 
@@ -257,14 +346,26 @@ public class StorageService {
             // Normal on first run.
             return new ArrayList<>();
         }
-        try (JsonReader reader = new JsonReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+        // Keep the stream as its own resource as well as the wrappers around it. If constructing a
+        // later wrapper ever fails, Java still closes everything that was opened before it; on
+        // Windows that is the difference between a recoverable load failure and a locked save file.
+        try (FileInputStream fileInputStream = new FileInputStream(file);
+             InputStreamReader inputStreamReader = new InputStreamReader(fileInputStream, StandardCharsets.UTF_8);
+             JsonReader reader = new JsonReader(inputStreamReader)) {
             ArrayList<HashMap<String, String>> data = gson.fromJson(reader, LIST_MAP_TYPE);
             return data != null ? data : new ArrayList<>();
         } catch (Exception e) {
-            logger.log("Failed to read " + file + ": " + e);
+            log("Failed to read " + file + ": " + e);
             throw new IllegalStateException(
                     "Fiefs could not read " + file + ". Refusing to enable so the file is not "
                             + "overwritten with empty data. Fix or remove the file, then restart.", e);
+        }
+    }
+
+    /** The test-only null-plugin construction has no usable plugin-backed debug logger. */
+    private void log(String message) {
+        if (fiefs != null && logger != null) {
+            logger.log(message);
         }
     }
 }

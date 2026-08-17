@@ -9,7 +9,7 @@
     <!-- Deliberately unchanged. Renaming the artifact would move the plugin's data directory
          (plugins/Fiefs/) and break anything declaring depend: [Fiefs]; the Medieval-Factions fork
          set the same precedent by keeping the com.dansplugins groupId. -->
-    <version>0.11.0-SNAPSHOT</version>
+    <version>0.12.0-SNAPSHOT-8-8-2026</version>
     <packaging>jar</packaging>
 
     <name>Fiefs</name>

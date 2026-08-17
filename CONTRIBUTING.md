@@ -40,13 +40,61 @@ Issues are grouped into [milestones](https://github.com/Dans-Plugins/Fiefs/miles
 
 1. Make sure an issue exists for the work. If not, create one.
 2. Switch to `main`: `git checkout main`
-3. Create a branch: `git checkout -b <branch-name>`
+3. Create a branch, using one of the prefixes below: `git checkout -b fix/kick-command-uuid-lookup`
 4. Make your changes.
 5. Test your changes.
-6. Commit: `git commit -m "Description of changes"`
+6. Commit: `git commit -m "Fix the kick command's member lookup"`
 7. Push: `git push origin <branch-name>`
-8. Open a pull request against `main`, link the related issue with `#<number>`.
+8. Open a pull request against `main`, and write `Closes #<number>` in the description so the
+   related issue is closed automatically when the pull request is merged.
 9. Address review feedback.
+
+## Commit and Pull Request Conventions
+
+### Branch names
+
+Prefix the branch with the kind of work it contains, then describe the work itself — use
+`feature/add-export-command`, not `feature/issue-42`. The prefixes in use are:
+
+- `feature/` — a new capability
+- `fix/` — a correction
+- `chore/` — maintenance, releases, and repository metadata
+- `test/` — test-only work
+
+### Commit messages
+
+- Write the subject in the imperative mood: "Add the rename command", not "Added" or "Adds".
+- Leave off the trailing period.
+- Do not add a `Co-Authored-By` trailer unless an AI agent actually co-authored the commit.
+
+Fiefs is developed AI-first, so many commits here are agent-authored. When an agent writes one, the
+message is passed through a HEREDOC so the trailer lands on its own line rather than being mangled
+by shell quoting, and the trailer names the model that actually did the work:
+
+```bash
+git commit -m "$(cat <<'EOF'
+Add the whois command
+
+Co-Authored-By: <the model that authored the commit> <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Pull requests
+
+- Pull requests are squash-merged. The history also contains merge commits — the most recent being
+  the 0.12.0 release pull request — so squashing describes what new work should follow rather than
+  every entry in the log.
+- Close the issue from the pull request body with `Closes #<number>`. A bare `#<number>` links the
+  issue but does not close it.
+- Check each `Closes #<number>` against the issue it names before the pull request is opened, rather
+  than carrying a number forward from an earlier planning step unverified.
+- Keep the documentation in step with the change: `COMMANDS.md`, `USER_GUIDE.md`, `CONFIG.md`,
+  `src/main/resources/plugin.yml` and `CHANGELOG.md` are the sources of truth for commands,
+  permission nodes, configuration options and user-visible changes respectively.
+
+These conventions follow
+[dms-conventions](https://github.com/dmccoystephenson/dms-conventions/blob/main/docs/COMMIT_PR_CONVENTIONS.md).
 
 ## Testing
 
