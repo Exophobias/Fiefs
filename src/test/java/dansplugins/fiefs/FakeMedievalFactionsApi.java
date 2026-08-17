@@ -10,6 +10,7 @@ import com.dansplugins.factionsystem.api.FactionRoleView;
 import com.dansplugins.factionsystem.api.FactionView;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import com.dansplugins.factionsystem.api.PeaceOutcome;
+import com.dansplugins.factionsystem.api.PrimaryOwnerReplaceOutcome;
 import com.dansplugins.factionsystem.api.SuccessionPolicy;
 import com.dansplugins.factionsystem.api.geometry.ChunkPos;
 import org.bukkit.Chunk;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -56,6 +58,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
             factionIdByPlayer.put(member, id);
         }
         faction.primaryOwnerId = members.length > 0 ? members[0] : null;
+        faction.primaryOwnerTerm = faction.primaryOwnerId == null ? null : UUID.randomUUID();
         factionsById.put(id, faction);
         return faction.id;
     }
@@ -73,6 +76,9 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     public void setPrimaryOwner(String factionId, UUID playerId) {
         FakeFaction faction = factionsById.get(factionId);
         if (faction != null) {
+            if (!Objects.equals(faction.primaryOwnerId, playerId)) {
+                faction.primaryOwnerTerm = UUID.randomUUID();
+            }
             faction.primaryOwnerId = playerId;
         }
     }
@@ -210,6 +216,20 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     }
 
     @Override
+    public @NotNull ApiResult transferClaim(@NotNull FactionId expectedOwner,
+                                            @NotNull FactionId to,
+                                            @NotNull UUID worldId,
+                                            int chunkX,
+                                            int chunkZ) {
+        String key = key(worldId, chunkX, chunkZ);
+        if (!expectedOwner.getValue().equals(factionIdByChunkKey.get(key))) {
+            return ApiResult.failure("The expected faction no longer owns that claim");
+        }
+        factionIdByChunkKey.put(key, to.getValue());
+        return ApiResult.success();
+    }
+
+    @Override
     public @NotNull ApiResult unclaim(@NotNull Chunk chunk) {
         factionIdByChunkKey.remove(key(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ()));
         return ApiResult.success();
@@ -283,8 +303,34 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         if (target == null) {
             return ApiResult.failure("No faction with id " + faction.getValue());
         }
-        target.primaryOwnerId = playerId;
+        if (!Objects.equals(target.primaryOwnerId, playerId)) {
+            target.primaryOwnerId = playerId;
+            target.primaryOwnerTerm = UUID.randomUUID();
+        }
         return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiOutcome<PrimaryOwnerReplaceOutcome> replacePrimaryOwnerIf(
+            @NotNull FactionId faction, @NotNull UUID expectedOwner,
+            @NotNull UUID expectedTerm, @Nullable UUID replacement) {
+        FakeFaction target = factionsById.get(faction.getValue());
+        if (target == null) {
+            return ApiOutcome.failure("No faction with id " + faction.getValue());
+        }
+        if (!Objects.equals(expectedOwner, target.primaryOwnerId)
+                || !Objects.equals(expectedTerm, target.primaryOwnerTerm)) {
+            return ApiOutcome.success(PrimaryOwnerReplaceOutcome.MISMATCH);
+        }
+        if (Objects.equals(replacement, target.primaryOwnerId)) {
+            return ApiOutcome.success(PrimaryOwnerReplaceOutcome.UNCHANGED);
+        }
+        if (replacement != null && !target.memberIds.contains(replacement)) {
+            return ApiOutcome.failure("Replacement is not a faction member");
+        }
+        target.primaryOwnerId = replacement;
+        target.primaryOwnerTerm = UUID.randomUUID();
+        return ApiOutcome.success(PrimaryOwnerReplaceOutcome.REPLACED);
     }
 
     @Override
@@ -338,6 +384,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         private final String name;
         private final List<UUID> memberIds = new ArrayList<>();
         private UUID primaryOwnerId;
+        private UUID primaryOwnerTerm;
 
         FakeFaction(FactionId id, String name) {
             this.id = id;
@@ -355,6 +402,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public boolean isAtWarWith(@NotNull FactionId other) { return false; }
         @Override public @Nullable FactionRoleView roleOf(@NotNull UUID playerId) { return null; }
         @Override public @Nullable UUID getPrimaryOwnerId() { return primaryOwnerId; }
+        @Override public @Nullable UUID getPrimaryOwnerTerm() { return primaryOwnerTerm; }
         // A nomination, which this fake never sets: Fiefs has its own heir and reads none of MF's.
         @Override public @Nullable UUID getHeirId() { return null; }
         // Zero is what MF reports for a faction with no tenure record. Fiefs reads neither.
