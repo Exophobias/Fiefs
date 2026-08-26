@@ -12,6 +12,7 @@ import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import com.dansplugins.factionsystem.api.PeaceOutcome;
 import com.dansplugins.factionsystem.api.PrimaryOwnerReplaceOutcome;
 import com.dansplugins.factionsystem.api.SuccessionPolicy;
+import com.dansplugins.factionsystem.api.WarEndNotice;
 import com.dansplugins.factionsystem.api.geometry.ChunkPos;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -113,6 +114,12 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return new ArrayList<>(factionsById.values());
     }
 
+    /** This fake keeps no directional war rows, so it cannot establish a complete war pair. */
+    @Override
+    public boolean isWarPairEstablished(@NotNull FactionId faction, @NotNull FactionId otherFaction) {
+        return false;
+    }
+
     @Override
     public FactionView getFactionByPlayer(@NotNull UUID playerId) {
         String id = factionIdByPlayer.get(playerId);
@@ -195,6 +202,16 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     @Override
     public @Nullable String getFlag(@NotNull FactionId faction, @NotNull String flag) {
         return flagsByFactionAndName.get(faction.getValue() + ":" + flag);
+    }
+
+    @Override
+    public @NotNull ApiOutcome<List<WarEndNotice>> getUnacknowledgedWarEnds(@NotNull String consumerId) {
+        return ApiOutcome.success(List.of());
+    }
+
+    @Override
+    public @NotNull ApiResult acknowledgeWarEnd(@NotNull String consumerId, @NotNull UUID noticeId) {
+        return ApiResult.success();
     }
 
     @Override
