@@ -1,6 +1,7 @@
 package dansplugins.fiefs;
 
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
+import dansplugins.fiefs.config.ConfigMigrator;
 import org.bukkit.plugin.ServicePriority;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -46,6 +48,90 @@ class FiefsLifecycleTest {
         withMedievalFactions();
         Fiefs fiefs = MockBukkit.load(Fiefs.class);
         assertTrue(fiefs.isEnabled());
+        assertEquals(ConfigMigrator.State.CURRENT, fiefs.getConfigMigrationResult().state());
+        assertEquals(1, fiefs.getConfig().getInt("config-version"));
+        assertSame(fiefs.getConfigMigrationResult().prepared().configuration(), fiefs.getConfig(),
+                "runtime must be the exact strictly validated snapshot, not Bukkit's cache");
+    }
+
+    @Test
+    void configCommandPublicationKeepsTheExactLastKnownGoodOnAnOperatorRace()
+            throws Exception {
+        withMedievalFactions();
+        Fiefs fiefs = MockBukkit.load(Fiefs.class);
+        File configFile = new File(fiefs.getDataFolder(), "config.yml");
+
+        var before = fiefs.getConfig();
+        assertFalse(before.getBoolean("debugMode"));
+        assertTrue(fiefs.updateConfigBoolean("debugMode", true));
+        assertFalse(before.getBoolean("debugMode"),
+                "the old snapshot must not be mutated before durable publication");
+        assertTrue(fiefs.getConfig().getBoolean("debugMode"));
+        assertSame(fiefs.getActiveConfigResult().prepared().configuration(), fiefs.getConfig());
+
+        var lastKnownGood = fiefs.getConfig();
+        String operatorEdit = Files.readString(configFile.toPath(), StandardCharsets.UTF_8)
+                + "operator-extension: retained\n";
+        Files.writeString(configFile.toPath(), operatorEdit, StandardCharsets.UTF_8);
+
+        assertFalse(fiefs.updateConfigBoolean("limitLand", false));
+        assertSame(lastKnownGood, fiefs.getConfig());
+        assertTrue(fiefs.getConfig().getBoolean("limitLand"));
+        assertEquals(operatorEdit, Files.readString(configFile.toPath(), StandardCharsets.UTF_8));
+        assertEquals(ConfigMigrator.State.ERROR, fiefs.getConfigMigrationResult().state());
+    }
+
+    @Test
+    void unversionedInstalledConfigMigratesBeforeMutableStateLoads() throws Exception {
+        withMedievalFactions();
+        File dataFolder = PluginDataFolder.create();
+        File config = new File(dataFolder, "config.yml");
+        String legacy = """
+                version: v0.11.0
+                debugMode: true
+                limitLand: false
+                enableTerritoryAlerts: true
+                extension-key: retained
+                """;
+        Files.writeString(config.toPath(), legacy, StandardCharsets.UTF_8);
+
+        Fiefs fiefs = MockBukkit.load(Fiefs.class);
+        PluginDataFolder.assertIsWhereThePluginLooked(dataFolder, fiefs);
+
+        assertTrue(fiefs.isEnabled());
+        assertEquals(ConfigMigrator.State.UPGRADED, fiefs.getConfigMigrationResult().state());
+        assertTrue(fiefs.getConfig().getBoolean("debugMode"));
+        assertFalse(fiefs.getConfig().getBoolean("limitLand"));
+        assertEquals("retained", fiefs.getConfig().getString("extension-key"));
+        String migrated = Files.readString(config.toPath());
+        assertTrue(migrated.indexOf("config-version: 1") < migrated.indexOf("debugMode: true"));
+        assertEquals(legacy, Files.readString(new File(dataFolder,
+                "config.yml.v0.bak").toPath()));
+    }
+
+    @Test
+    void futureConfigDisablesBeforeUnreadableMutableDataCanBeTouched() throws Exception {
+        withMedievalFactions();
+        File dataFolder = PluginDataFolder.create();
+        File config = new File(dataFolder, "config.yml");
+        String future = """
+                config-version: 2
+                debugMode: false
+                limitLand: true
+                enableTerritoryAlerts: true
+                """;
+        Files.writeString(config.toPath(), future, StandardCharsets.UTF_8);
+        File fiefsJson = new File(dataFolder, "fiefs.json");
+        String sentinel = "not-json-and-must-not-be-read-or-rewritten";
+        Files.writeString(fiefsJson.toPath(), sentinel, StandardCharsets.UTF_8);
+
+        Fiefs fiefs = MockBukkit.load(Fiefs.class);
+        PluginDataFolder.assertIsWhereThePluginLooked(dataFolder, fiefs);
+
+        assertFalse(fiefs.isEnabled());
+        assertEquals(ConfigMigrator.State.FUTURE, fiefs.getConfigMigrationResult().state());
+        assertEquals(future, Files.readString(config.toPath()));
+        assertEquals(sentinel, Files.readString(fiefsJson.toPath()));
     }
 
     /**

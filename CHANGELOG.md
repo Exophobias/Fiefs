@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- Schema-1 configuration adoption. Existing unversioned files migrate automatically from schema 0
+  into the bundled key order with exact backups, strict ambiguous/future YAML rejection, preserved
+  explicit and extension values, and startup diagnostics. Invalid config now blocks startup before
+  Fiefs reads or can rewrite mutable fief data.
 - A `Dev Release` workflow, which republishes a rolling `dev` prerelease of `main` on every non-documentation push. This is what Dan's Plugin Manager's experimental channel installs from: `/dpm get fiefs --experimental` reads `releases/tags/dev`, so without it there is nothing for that command to download. The prerelease is unreleased, unreviewed code and is marked as such.
 - Succession for fief holders. A departing holder's fief passes to their named heir, then to the
   longest-standing remaining member, then reverts to the parent faction. Anyone who has left that

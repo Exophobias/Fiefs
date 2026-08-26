@@ -27,7 +27,6 @@ import java.util.Map;
  * @author Daniel McCoy Stephenson
  */
 public class StorageService {
-    private final ConfigService configService;
     private final Fiefs fiefs;
 
     /**
@@ -63,7 +62,6 @@ public class StorageService {
      */
     StorageService(ConfigService configService, Fiefs fiefs, PersistentData persistentData, Logger logger,
                    MedievalFactionsIntegrator medievalFactionsIntegrator, Path dataFolderOverride) {
-        this.configService = configService;
         this.fiefs = fiefs;
         this.persistentData = persistentData;
         this.logger = logger;
@@ -78,7 +76,7 @@ public class StorageService {
      * thread with pretty-printed Gson. An idle server now does no work at all.
      */
     public void saveIfDirty() {
-        if (persistentData.isDirty() || configService.hasBeenAltered()) {
+        if (persistentData.isDirty()) {
             save();
         }
     }
@@ -106,9 +104,6 @@ public class StorageService {
         }
         saveFiefs();
         saveClaimedChunks();
-        if (configService.hasBeenAltered()) {
-            fiefs.saveConfig();
-        }
         persistentData.clearDirty();
     }
 

@@ -1,6 +1,7 @@
 package dansplugins.fiefs;
 
 import dansplugins.fiefs.commands.*;
+import dansplugins.fiefs.config.ConfigMigrator;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.externalapi.FiefsAPI;
 import dansplugins.fiefs.heraldry.HeraldryPresence;
@@ -19,12 +20,17 @@ import dansplugins.fiefs.utils.Logger;
 import dansplugins.fiefs.utils.Scheduler;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -36,7 +42,15 @@ import java.util.Arrays;
  * @author Daniel McCoy Stephenson
  */
 public class Fiefs extends JavaPlugin {
+    private record ConfigGeneration(YamlConfiguration configuration,
+                                    ConfigMigrator.Result compatibility) {
+    }
+
     private final String pluginVersion = "v" + getPluginMeta().getVersion();
+    // Constructor-time debug logging must never make Bukkit parse an untrusted disk file. Until
+    // strict activation succeeds, getConfig() deliberately exposes only this empty bootstrap view.
+    private final YamlConfiguration bootstrapConfiguration = new YamlConfiguration();
+    private volatile ConfigGeneration configGeneration;
 
     private final CommandService commandService = new CommandService();
     private final Logger logger = new Logger(this);
@@ -66,13 +80,20 @@ public class Fiefs extends JavaPlugin {
      * overwrite fiefs.json and claimedChunks.json with {@code []}.
      */
     private boolean loaded = false;
+    private volatile ConfigMigrator.Result configMigrationResult;
 
     /**
      * This runs when the server starts.
      */
     @Override
     public void onEnable() {
-        initializeConfig();
+        if (!initializeConfig()) {
+            // No mutable state, listeners, services, or schedules have been loaded yet. Explicitly
+            // disable because some Bukkit test/runtime implementations leave a plugin marked enabled
+            // when onEnable merely returns after a trust failure.
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         // Resolved HERE, not in a field initializer: MF registers its API with the ServicesManager in
         // its own onEnable, and Bukkit constructs all plugins before enabling any of them.
@@ -142,17 +163,21 @@ public class Fiefs extends JavaPlugin {
         return pluginVersion;
     }
 
+    /** Returns only the exact snapshot that passed strict physical and typed validation. */
+    @Override
+    public FileConfiguration getConfig() {
+        ConfigGeneration current = configGeneration;
+        return current == null ? bootstrapConfiguration : current.configuration();
+    }
+
     /**
-     * Checks if the version is mismatched.
-     * @return A boolean indicating if the version is mismatched.
+     * Compatibility shim for callers that used the old jar-version config check.
+     *
+     * @return whether the installed configuration is blocked by its schema state.
      */
     public boolean isVersionMismatched() {
-        String configVersion = this.getConfig().getString("version");
-        if (configVersion == null || this.getVersion() == null) {
-            return false;
-        } else {
-            return !configVersion.equalsIgnoreCase(this.getVersion());
-        }
+        ConfigMigrator.Result result = configMigrationResult;
+        return result != null && !result.compatible();
     }
 
     /**
@@ -161,6 +186,39 @@ public class Fiefs extends JavaPlugin {
      */
     public boolean isDebugEnabled() {
         return configService.getBoolean("debugMode");
+    }
+
+    /** Atomically persists and then publishes one command-owned boolean setting. */
+    public boolean updateConfigBoolean(String key, boolean value) {
+        ConfigGeneration current = configGeneration;
+        if (current == null) {
+            configMigrationResult = new ConfigMigrator.Result(ConfigMigrator.State.ERROR, -1,
+                    null, "no active config snapshot is available");
+            return false;
+        }
+        Path installed = getDataFolder().toPath().resolve("config.yml");
+        ConfigMigrator.Result attempt = ConfigMigrator.updateBoolean(
+                installed, current.compatibility(), key, value);
+        configMigrationResult = attempt;
+        if (!attempt.compatible()) {
+            getLogger().warning("Config update was blocked: " + attempt.detail());
+            return false;
+        }
+        try {
+            if (!attempt.stillInstalled(installed)) {
+                configMigrationResult = new ConfigMigrator.Result(ConfigMigrator.State.ERROR, -1,
+                        null, "config.yml changed before its updated snapshot could be activated");
+                return false;
+            }
+        } catch (IOException failure) {
+            configMigrationResult = new ConfigMigrator.Result(ConfigMigrator.State.ERROR, -1,
+                    null, "config.yml could not be rechecked before activation");
+            return false;
+        }
+
+        // One pointer publishes the exact post-write snapshot and its matching CAS baseline.
+        configGeneration = new ConfigGeneration(attempt.prepared().configuration(), attempt);
+        return true;
     }
 
     public FiefsAPI getAPI() {
@@ -178,17 +236,59 @@ public class Fiefs extends JavaPlugin {
         return persistentData;
     }
 
-    private void initializeConfig() {
-        if (!(new File(getDataFolder(), "config.yml").exists())) {
-            configService.saveMissingConfigDefaultsIfNotPresent();
-        }
-        else {
-            // pre load compatibility checks
-            if (isVersionMismatched()) {
-                configService.saveMissingConfigDefaultsIfNotPresent();
+    private boolean initializeConfig() {
+        saveDefaultConfig();
+        Path installed = getDataFolder().toPath().resolve("config.yml");
+
+        final String bundled;
+        try (InputStream input = getResource("config.yml")) {
+            if (input == null) {
+                getLogger().severe("Fiefs.jar does not contain config.yml; startup is blocked.");
+                return false;
             }
-            reloadConfig();
+            bundled = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException failure) {
+            getLogger().severe("Fiefs.jar config.yml could not be read; startup is blocked.");
+            return false;
         }
+
+        ConfigMigrator.Result result = ConfigMigrator.upgrade(installed, bundled);
+        configMigrationResult = result;
+        getLogger().info("Config status: plugin=" + getPluginMeta().getVersion()
+                + ", supported=" + ConfigMigrator.CURRENT_VERSION
+                + ", source=" + result.sourceVersion()
+                + ", installed=" + (result.compatible()
+                        ? result.loadedVersion() : "unverified")
+                + ", state=" + result.state().name().toLowerCase() + ".");
+        if (!result.compatible()) {
+            getLogger().severe("Fiefs config activation is blocked: " + result.detail());
+            return false;
+        }
+
+        try {
+            if (!result.stillInstalled(installed)) {
+                configMigrationResult = new ConfigMigrator.Result(ConfigMigrator.State.ERROR, -1,
+                        result.backup(), "config.yml changed during activation");
+                getLogger().severe("Fiefs config changed during activation; startup is blocked.");
+                return false;
+            }
+        } catch (IOException failure) {
+            configMigrationResult = new ConfigMigrator.Result(ConfigMigrator.State.ERROR, -1,
+                    result.backup(), "config.yml could not be rechecked during activation");
+            getLogger().severe("Fiefs config could not be rechecked during activation.");
+            return false;
+        }
+        configGeneration = new ConfigGeneration(result.prepared().configuration(), result);
+        return true;
+    }
+
+    public ConfigMigrator.Result getConfigMigrationResult() {
+        return configMigrationResult;
+    }
+
+    public ConfigMigrator.Result getActiveConfigResult() {
+        ConfigGeneration current = configGeneration;
+        return current == null ? null : current.compatibility();
     }
 
     /**

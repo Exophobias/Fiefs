@@ -1,0 +1,14 @@
+# Fiefs operator configuration.
+#
+# config-version belongs to this file's schema. Existing Fiefs installations without this marker
+# are schema 0 and are upgraded automatically without losing their explicit choices.
+config-version: 1
+
+# Enables verbose diagnostic logging.
+debugMode: false
+
+# Restricts fiefs to land already claimed by their parent faction.
+limitLand: true
+
+# Sends players a message when they enter or leave fief territory.
+enableTerritoryAlerts: true
