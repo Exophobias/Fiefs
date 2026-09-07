@@ -222,7 +222,7 @@ public class Fiefs extends JavaPlugin {
     }
 
     public FiefsAPI getAPI() {
-        return new FiefsAPI(persistentData, successionService);
+        return new FiefsAPI(persistentData, successionService, storageService);
     }
 
     /**

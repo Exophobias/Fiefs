@@ -51,6 +51,47 @@ class StorageServiceTest {
                 new ConfigService(null), null, persistentData, NULL_LOGGER, null, dataFolder());
     }
 
+    @Test
+    void failedSaveKeepsDirtyAndAutosaveRetriesBothDocuments() throws Exception {
+        PersistentData data = new PersistentData(null);
+        StorageService storage = newStorageService(data);
+        data.addFief(newFief("Retry"));
+        Path blocked = dataFolder().resolve("claimedChunks.json");
+        Files.createDirectories(blocked);
+        storage.save();
+        assertTrue(data.isDirty());
+        assertThrows(IllegalStateException.class, storage::verifyPersistence);
+        Files.delete(blocked);
+        storage.saveIfDirty();
+        assertFalse(data.isDirty());
+        storage.verifyPersistence();
+    }
+
+    @Test
+    void disposableFixtureRefusesForeignStateAndProvesExactPersistence() {
+        PersistentData data = new PersistentData(null);
+        StorageService storage = newStorageService(data);
+        UUID actor = UUID.randomUUID();
+        var fixture = new dansplugins.fiefs.externalapi.DisposableFiefsFixture(
+                "PT0123456789", java.util.Set.of(actor), data, storage);
+        Fief own = new Fief(null, "PT0123456789A", actor, "realm", NULL_LOGGER);
+        data.addFief(own);
+        fixture.flushAndVerify();
+        UUID outsider = UUID.randomUUID();
+        own.addMember(outsider);
+        assertThrows(IllegalStateException.class, fixture::cleanup);
+        assertEquals(1, data.getFiefs().size());
+        own.removeMember(outsider);
+        own.setHeirUUID(outsider);
+        assertThrows(IllegalStateException.class, fixture::cleanup);
+        assertEquals(1, data.getFiefs().size());
+        own.setHeirUUID(null);
+        fixture.cleanup();
+        fixture.cleanup();
+        assertTrue(data.getFiefs().isEmpty());
+        storage.verifyPersistence();
+    }
+
     private Fief newFief(String name) {
         return new Fief(null, name, UUID.randomUUID(), "faction-1", NULL_LOGGER);
     }

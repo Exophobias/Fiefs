@@ -96,15 +96,57 @@ public class StorageService {
         return new File(fiefs.getDataFolder(), name);
     }
 
+    /** Checked owner read-back of both documents, including quarantined extension rows. */
+    public void verifyPersistence() {
+        if (!loadCompletedCleanly) {
+            throw new IllegalStateException("Fiefs persistence is not active");
+        }
+        List<Map<String, String>> expectedFiefs = new ArrayList<>();
+        persistentData.getFiefs().forEach(fief -> expectedFiefs.add(fief.save()));
+        expectedFiefs.addAll(quarantinedFiefs);
+        List<Map<String, String>> expectedChunks = new ArrayList<>();
+        persistentData.getClaimedChunks().forEach(chunk -> expectedChunks.add(chunk.save()));
+        expectedChunks.addAll(quarantinedChunks);
+        if (persistentData.isDirty()
+                || !expectedFiefs.equals(checkedRows(FIEFS_FILE_NAME))
+                || !expectedChunks.equals(checkedRows(CLAIMED_CHUNKS_FILE_NAME))) {
+            throw new IllegalStateException("Fiefs persisted rows do not match owner memory");
+        }
+    }
+
+    private List<Map<String, String>> checkedRows(String name) {
+        File file = dataFile(name);
+        if (!file.exists()) {
+            return List.of();
+        }
+        if (!file.isFile()) {
+            throw new IllegalStateException("Fiefs persistence is not a readable regular file");
+        }
+        try (Reader input = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8);
+             JsonReader reader = new JsonReader(input)) {
+            List<Map<String, String>> rows = gson.fromJson(reader, LIST_MAP_TYPE);
+            if (rows == null || reader.peek() != com.google.gson.stream.JsonToken.END_DOCUMENT) {
+                throw new IllegalStateException("Fiefs persistence is not one complete row list");
+            }
+            return rows;
+        } catch (IOException | com.google.gson.JsonParseException failure) {
+            throw new IllegalStateException("Fiefs persistence could not be verified", failure);
+        }
+    }
+
     public void save() {
         if (!loadCompletedCleanly) {
             System.out.println("ERROR: skipping save because the last load did not complete cleanly. " +
                     "Fix " + FIEFS_FILE_NAME + "/" + CLAIMED_CHUNKS_FILE_NAME + " and restart to try again.");
             return;
         }
-        saveFiefs();
-        saveClaimedChunks();
-        persistentData.clearDirty();
+        boolean fiefsSaved = saveFiefs();
+        boolean chunksSaved = saveClaimedChunks();
+        if (fiefsSaved && chunksSaved) {
+            persistentData.clearDirty();
+        } else {
+            persistentData.markDirty();
+        }
     }
 
     public void load() {
@@ -121,7 +163,7 @@ public class StorageService {
         return loadCompletedCleanly;
     }
 
-    private void saveFiefs() {
+    private boolean saveFiefs() {
         // save each fief object individually
         List<Map<String, String>> fiefs = new ArrayList<>();
         for (Fief fief : persistentData.getFiefs()){
@@ -130,10 +172,10 @@ public class StorageService {
         // Then whatever would not load, exactly as it was read. See loadFiefs.
         fiefs.addAll(quarantinedFiefs);
 
-        writeOutFiles(fiefs, FIEFS_FILE_NAME);
+        return writeOutFiles(fiefs, FIEFS_FILE_NAME);
     }
 
-    private void saveClaimedChunks() {
+    private boolean saveClaimedChunks() {
         // save each claimed chunk object individually
         List<Map<String, String>> claimedChunks = new ArrayList<>();
         for (ClaimedChunk claimedChunk : persistentData.getClaimedChunks()){
@@ -141,7 +183,7 @@ public class StorageService {
         }
         claimedChunks.addAll(quarantinedChunks);
 
-        writeOutFiles(claimedChunks, CLAIMED_CHUNKS_FILE_NAME);
+        return writeOutFiles(claimedChunks, CLAIMED_CHUNKS_FILE_NAME);
     }
 
     /**
@@ -153,7 +195,7 @@ public class StorageService {
      * Writing elsewhere and moving means the real file is only ever replaced by a file that is already
      * complete on disk.
      */
-    private void writeOutFiles(List<Map<String, String>> saveData, String fileName) {
+    private boolean writeOutFiles(List<Map<String, String>> saveData, String fileName) {
         Path target = dataFile(fileName).toPath();
         Path temp = dataFile(fileName + ".tmp").toPath();
         try {
@@ -168,9 +210,11 @@ public class StorageService {
                 // is still strictly better than truncate-then-write.
                 Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
             }
+            return true;
         } catch (IOException e) {
             log("Failed to save " + fileName + ": " + e);
             System.out.println("[Fiefs] ERROR: failed to save " + fileName + ": " + e);
+            return false;
         }
     }
 

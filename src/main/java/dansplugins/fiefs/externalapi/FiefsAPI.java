@@ -32,6 +32,7 @@ public class FiefsAPI {
      * the service, which there is exactly one of, and this class only forwards.
      */
     private final SuccessionService successionService;
+    private final dansplugins.fiefs.services.StorageService storage;
 
     /**
      * Retains the original API constructor for consumers that only use fief lookups.
@@ -43,8 +44,18 @@ public class FiefsAPI {
     }
 
     public FiefsAPI(PersistentData persistentData, SuccessionService successionService) {
+        this(persistentData, successionService, null);
+    }
+
+    public FiefsAPI(PersistentData persistentData, SuccessionService successionService,
+                    dansplugins.fiefs.services.StorageService storage) {
         this.persistentData = persistentData;
         this.successionService = successionService;
+        this.storage = storage;
+    }
+
+    public DisposableFiefsFixture beginDisposableFixture(String tag, Set<UUID> actors) {
+        return new DisposableFiefsFixture(tag, actors, persistentData, storage);
     }
 
     public FI_Fief getFief(String fiefName) {
