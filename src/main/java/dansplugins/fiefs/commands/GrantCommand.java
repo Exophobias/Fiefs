@@ -119,6 +119,7 @@ public class GrantCommand extends FiefsCommand {
         // The outgoing holder's nomination dies with their tenure; the new holder names their own.
         fief.setHeirUUID(null);
         persistentData.markDirty();
+        persistentData.publishHolderChange(fief, previousHolder);
 
         player.sendMessage(Component.text("Granted " + fief.getName() + " to " + targetName + ".",
                 NamedTextColor.GREEN));

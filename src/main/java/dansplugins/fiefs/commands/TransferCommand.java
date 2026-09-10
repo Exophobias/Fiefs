@@ -77,12 +77,14 @@ public class TransferCommand extends FiefsCommand {
             return false;
         }
 
+        UUID previousHolder = playersFief.getOwnerUUID();
         playersFief.setOwnerUUID(targetUUID);
         // The heir was the OUTGOING holder's nomination. Carrying it over would let a holder who left
         // years ago decide who inherits from a successor they never met; the new holder names theirs.
         playersFief.setHeirUUID(null);
 
         persistentData.markDirty();
+        persistentData.publishHolderChange(playersFief, previousHolder);
         player.sendMessage(Component.text("Transferred.", NamedTextColor.GREEN));
 
         // TODO: inform fief members about transfer of power

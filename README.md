@@ -60,6 +60,24 @@ If you see `BUILD SUCCESS`, the project has built successfully. `mvn clean packa
 
 ## Development
 
+### Live holder notifications
+
+The Patriam fork publishes `dansplugins.fiefs.externalapi.FiefHolderChangedEvent` after complete
+live creation, grant, transfer, revocation, succession and removal operations. It carries the stable
+fief UUID and previous/current nullable holder UUIDs. Listeners see the applied membership, holder,
+heir and dirty state; removal also finishes claim cleanup before publication. Refusals, unchanged
+holders, vacant creation/removal, startup loading and direct low-level setters do not announce grants.
+
+The notification is noncancellable and delivered on the main thread. It describes LIVE owner state,
+**not a durable-save acknowledgement**: dirty records are persisted separately. A delayed event may
+describe an older transition, so consumers must reread current ownership. Listener or scheduler
+failure does not undo the completed mutation. PatriamMFAddon uses this signal to refresh cosmetic
+titles for affected online holders without sweeping the whole server.
+
+Owner verification includes actual Fiefs command/service execution on MockBukkit, complete-state
+observations, refusal silence, parent-faction removal controls, deferred main-thread delivery and
+startup/shutdown behavior. These checks do not claim native Minecraft client acceptance.
+
 ### Building the Plugin
 
 1. Clone the repository: `git clone https://github.com/Dans-Plugins/Fiefs.git`

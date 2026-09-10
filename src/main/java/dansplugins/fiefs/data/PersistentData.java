@@ -2,6 +2,7 @@ package dansplugins.fiefs.data;
 
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionView;
+import dansplugins.fiefs.externalapi.FiefHolderChangedEvent;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
@@ -13,6 +14,8 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.UUID;
 
@@ -51,9 +54,31 @@ public class PersistentData {
      * save — shutdown always saves unconditionally.
      */
     private boolean dirty = false;
+    private Consumer<FiefHolderChangedEvent> holderChanges = ignored -> { };
 
     public PersistentData(MedievalFactionsIntegrator medievalFactionsIntegrator) {
         this.medievalFactionsIntegrator = medievalFactionsIntegrator;
+    }
+
+    /** Installed after successful startup loading; restored to a no-op before shutdown. */
+    public void setHolderChangeObserver(Consumer<FiefHolderChangedEvent> observer) {
+        holderChanges = Objects.requireNonNull(observer, "observer");
+    }
+
+    /**
+     * Called by owner operations only after membership, owner, heir and dirty state are complete.
+     * Detached objects and unchanged holders cannot publish a live-store holding change.
+     */
+    public void publishHolderChange(Fief fief, UUID previousHolder) {
+        if (getFiefById(fief.getId()) == fief) {
+            holdingChanged(fief.getId(), previousHolder, fief.getOwnerUUID());
+        }
+    }
+
+    private void holdingChanged(UUID fiefId, UUID previousHolder, UUID currentHolder) {
+        if (!Objects.equals(previousHolder, currentHolder)) {
+            holderChanges.accept(new FiefHolderChangedEvent(fiefId, previousHolder, currentHolder));
+        }
     }
 
     /** Flags in-memory state as needing a write. See {@link #dirty}. */
@@ -168,15 +193,20 @@ public class PersistentData {
         }
         fiefs.add(fief);
         markDirty();
+        holdingChanged(fief.getId(), null, fief.getOwnerUUID());
         return true;
     }
 
     public boolean removeFief(Fief fiefToRemove) {
+        if (!fiefs.remove(fiefToRemove)) {
+            return false;
+        }
         // Unclaim all of the fief's land so the chunks aren't orphaned when the
         // fief is disbanded (via /fi disband or when its faction disbands). #133
         claimedChunks.removeIf(chunk -> chunk.getFief().equalsIgnoreCase(fiefToRemove.getName()));
         markDirty();
-        return fiefs.remove(fiefToRemove);
+        holdingChanged(fiefToRemove.getId(), fiefToRemove.getOwnerUUID(), null);
+        return true;
     }
 
     public void sendListOfFiefsToPlayer(Player player) {

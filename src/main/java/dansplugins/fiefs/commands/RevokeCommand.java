@@ -85,6 +85,7 @@ public class RevokeCommand extends FiefsCommand {
         fief.setOwnerUUID(null);
         fief.setHeirUUID(null);
         persistentData.markDirty();
+        persistentData.publishHolderChange(fief, previousHolder);
 
         player.sendMessage(Component.text("Revoked. " + fief.getName() + " is held by "
                 + faction.getName() + " until you grant it.", NamedTextColor.GREEN));

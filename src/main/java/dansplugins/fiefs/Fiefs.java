@@ -4,6 +4,7 @@ import dansplugins.fiefs.commands.*;
 import dansplugins.fiefs.config.ConfigMigrator;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.externalapi.FiefsAPI;
+import dansplugins.fiefs.externalapi.FiefHolderChangedEvent;
 import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.listeners.FactionEventListener;
@@ -104,6 +105,8 @@ public class Fiefs extends JavaPlugin {
 
         storageService.load();
         loaded = true;
+        // Loading a save is not a new grant. Observe only operations against the fully loaded store.
+        persistentData.setHolderChangeObserver(this::publishHolderChange);
         registerEventHandlers();
         initializeCommandService();
         scheduler.scheduleAutosave();
@@ -128,9 +131,34 @@ public class Fiefs extends JavaPlugin {
      */
     @Override
     public void onDisable() {
+        persistentData.setHolderChangeObserver(ignored -> { });
         // Never save state we never loaded — that writes [] over the real save files. See #loaded.
         if (loaded) {
             storageService.save();
+        }
+    }
+
+    /** A LIVE notification failure cannot turn the already-applied owner mutation into a failure. */
+    private void publishHolderChange(FiefHolderChangedEvent event) {
+        Runnable publication = () -> {
+            try {
+                getServer().getPluginManager().callEvent(event);
+            } catch (RuntimeException | LinkageError failure) {
+                getLogger().log(java.util.logging.Level.WARNING,
+                        "Could not announce a live fief holding change; the owner state is already applied.",
+                        failure);
+            }
+        };
+        try {
+            if (getServer().isPrimaryThread()) {
+                publication.run();
+            } else {
+                getServer().getScheduler().runTask(this, publication);
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            getLogger().log(java.util.logging.Level.WARNING,
+                    "Could not schedule a live fief holding change; the owner state is already applied.",
+                    failure);
         }
     }
 

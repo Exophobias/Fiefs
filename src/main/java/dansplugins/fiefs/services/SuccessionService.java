@@ -416,6 +416,7 @@ public class SuccessionService {
             // fief, and a hand-edited save file should not be able to produce one.
             fief.addMember(succession.newOwnerId());
         }
+        UUID previousHolder = fief.getOwnerUUID();
         fief.setOwnerUUID(succession.newOwnerId());
         // The nomination belongs to the holder who made it, never to the seat: a new holder names
         // their own heir. Leaving it in place would let a long-departed holder's choice decide the
@@ -431,6 +432,7 @@ public class SuccessionService {
         // holder who has just gone. Forgotten rather than recomputed, so the next refresh seeds
         // silently instead of announcing a change nobody made.
         standingAnswers.remove(fief.getId());
+        persistentData.publishHolderChange(fief, previousHolder);
 
         announce(fief, departingHolder, succession);
         return succession;
