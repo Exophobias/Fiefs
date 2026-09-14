@@ -3,6 +3,7 @@ package dansplugins.fiefs.data;
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.externalapi.FiefHolderChangedEvent;
+import dansplugins.fiefs.externalapi.FiefClaimStatus;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
@@ -44,6 +45,12 @@ public class PersistentData {
      */
     private final List<Fief> fiefs = new CopyOnWriteArrayList<>();
     private final List<ClaimedChunk> claimedChunks = new CopyOnWriteArrayList<>();
+    private record ClaimPosition(String world, int x, int z) { }
+    private final java.util.concurrent.ConcurrentMap<ClaimPosition, Integer> claimPositions =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private final Object claimMutationLock = new Object();
+    private volatile boolean claimLookupUpdating;
+    private volatile int invalidClaimPositions;
 
     /**
      * Whether in-memory state has diverged from disk, so the autosave can skip an idle server.
@@ -203,7 +210,18 @@ public class PersistentData {
         }
         // Unclaim all of the fief's land so the chunks aren't orphaned when the
         // fief is disbanded (via /fi disband or when its faction disbands). #133
-        claimedChunks.removeIf(chunk -> chunk.getFief().equalsIgnoreCase(fiefToRemove.getName()));
+        synchronized (claimMutationLock) {
+            claimLookupUpdating = true;
+            try {
+                List<ClaimedChunk> removed = claimedChunks.stream()
+                        .filter(chunk -> fiefToRemove.getName().equalsIgnoreCase(chunk.getFief())).toList();
+                var removedSet = new java.util.HashSet<>(removed);
+                claimedChunks.removeIf(removedSet::contains);
+                removed.forEach(this::unindexClaim);
+            } finally {
+                claimLookupUpdating = false;
+            }
+        }
         markDirty();
         holdingChanged(fiefToRemove.getId(), fiefToRemove.getOwnerUUID(), null);
         return true;
@@ -240,17 +258,68 @@ public class PersistentData {
     }
 
     public void clearClaimedChunks() {
-        claimedChunks.clear();
+        synchronized (claimMutationLock) {
+            claimLookupUpdating = true;
+            try {
+                claimedChunks.forEach(ClaimedChunk::detachFromStore);
+                claimedChunks.clear();
+                claimPositions.clear();
+                invalidClaimPositions = 0;
+            } finally {
+                claimLookupUpdating = false;
+            }
+        }
     }
 
     public void addChunk(ClaimedChunk chunk) {
-        claimedChunks.add(chunk);
+        Objects.requireNonNull(chunk, "chunk");
+        synchronized (claimMutationLock) {
+            claimLookupUpdating = true;
+            try {
+                chunk.attachToStore();
+                ClaimPosition position = positionOf(chunk);
+                if (position == null) invalidClaimPositions++;
+                else claimPositions.merge(position, 1, Integer::sum);
+                claimedChunks.add(chunk);
+            } finally {
+                claimLookupUpdating = false;
+            }
+        }
         markDirty();
     }
 
     public void removeChunk(ClaimedChunk chunk) {
-        claimedChunks.remove(chunk);
+        synchronized (claimMutationLock) {
+            claimLookupUpdating = true;
+            try {
+                if (claimedChunks.remove(chunk)) unindexClaim(chunk);
+            } finally {
+                claimLookupUpdating = false;
+            }
+        }
         markDirty();
+    }
+
+    private static ClaimPosition positionOf(ClaimedChunk chunk) {
+        String world = chunk.getWorld();
+        return world == null || world.isBlank() ? null : new ClaimPosition(world, chunk.getX(), chunk.getZ());
+    }
+
+    private void unindexClaim(ClaimedChunk chunk) {
+        ClaimPosition position = positionOf(chunk);
+        if (position == null) invalidClaimPositions--;
+        else claimPositions.computeIfPresent(position, (key, count) -> count == 1 ? null : count - 1);
+        chunk.detachFromStore();
+    }
+
+    /** Nonblocking point lookup; invalid records cannot quietly disappear from claim coverage. */
+    public FiefClaimStatus getClaimStatus(String worldName, int chunkX, int chunkZ) {
+        if (worldName == null || worldName.isBlank() || claimLookupUpdating || invalidClaimPositions != 0) {
+            return FiefClaimStatus.UNAVAILABLE;
+        }
+        boolean claimed = claimPositions.containsKey(new ClaimPosition(worldName, chunkX, chunkZ));
+        if (claimLookupUpdating || invalidClaimPositions != 0) return FiefClaimStatus.UNAVAILABLE;
+        return claimed ? FiefClaimStatus.CLAIMED : FiefClaimStatus.UNCLAIMED;
     }
 
     public int getNumChunks() {
@@ -259,7 +328,8 @@ public class PersistentData {
 
     /** Every claimed chunk. See {@link #getFiefs()} for why this is a {@link List}. */
     public List<ClaimedChunk> getClaimedChunks() {
-        return claimedChunks;
+        // Mutations must update the positional index through this owner, not through a leaked list.
+        return java.util.Collections.unmodifiableList(claimedChunks);
     }
 
     public int getNumChunksClaimedByFief(Fief playersFief) {

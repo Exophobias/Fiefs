@@ -27,6 +27,7 @@ public class ClaimedChunk {
     private int z;
     private String world;
     private String faction;
+    private int stores;
 
     /**
      * The claiming fief's NAME, still, now that {@code Fief} has a stable id.
@@ -84,8 +85,21 @@ public class ClaimedChunk {
         return fief;
     }
 
-    public void setWorld(String worldName) {
+    public synchronized void setWorld(String worldName) {
+        if (stores != 0) {
+            throw new IllegalStateException("Remove the claim from its store before changing its position");
+        }
         world = worldName;
+    }
+
+    /** Owner bookkeeping: a live indexed record's coordinates cannot be silently rewritten. */
+    public synchronized void attachToStore() {
+        stores++;
+    }
+
+    public synchronized void detachFromStore() {
+        if (stores == 0) throw new IllegalStateException("Claim is not attached to a store");
+        stores--;
     }
 
     public String getWorld() {

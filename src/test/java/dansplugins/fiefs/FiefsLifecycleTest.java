@@ -55,6 +55,32 @@ class FiefsLifecycleTest {
     }
 
     @Test
+    void claimLookupIsPublishedOnlyForCompleteEnabledStorageAndStaleHandlesFailClosed() {
+        withMedievalFactions();
+        Fiefs fiefs = MockBukkit.load(Fiefs.class);
+        var api = server.getServicesManager().load(dansplugins.fiefs.externalapi.FiefsAPI.class);
+        assertNotNull(api);
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNCLAIMED,
+                api.getClaimStatus("world", 0, 0));
+        server.getPluginManager().disablePlugin(fiefs);
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNAVAILABLE,
+                api.getClaimStatus("world", 0, 0));
+    }
+
+    @Test
+    void quarantinedClaimRowsMakePositionalAbsenceUnavailable() throws Exception {
+        withMedievalFactions();
+        File dataFolder = PluginDataFolder.create();
+        Files.writeString(new File(dataFolder, "claimedChunks.json").toPath(),
+                "[{\"X\":\"not-an-integer\",\"Z\":\"0\",\"world\":\"\\\"world\\\"\"}]",
+                StandardCharsets.UTF_8);
+        Fiefs fiefs = MockBukkit.load(Fiefs.class);
+        PluginDataFolder.assertIsWhereThePluginLooked(dataFolder, fiefs);
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNAVAILABLE,
+                fiefs.getAPI().getClaimStatus("world", 0, 0));
+    }
+
+    @Test
     void configCommandPublicationKeepsTheExactLastKnownGoodOnAnOperatorRace()
             throws Exception {
         withMedievalFactions();

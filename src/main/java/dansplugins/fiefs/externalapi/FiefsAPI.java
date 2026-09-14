@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 
 /**
  * @author Daniel McCoy Stephenson
@@ -33,6 +34,7 @@ public class FiefsAPI {
      */
     private final SuccessionService successionService;
     private final dansplugins.fiefs.services.StorageService storage;
+    private final BooleanSupplier claimLookupReady;
 
     /**
      * Retains the original API constructor for consumers that only use fief lookups.
@@ -49,9 +51,30 @@ public class FiefsAPI {
 
     public FiefsAPI(PersistentData persistentData, SuccessionService successionService,
                     dansplugins.fiefs.services.StorageService storage) {
+        this(persistentData, successionService, storage, () -> false);
+    }
+
+    /** Provider wiring; legacy constructors do not assert that storage was successfully loaded. */
+    public FiefsAPI(PersistentData persistentData, SuccessionService successionService,
+                    dansplugins.fiefs.services.StorageService storage, BooleanSupplier claimLookupReady) {
         this.persistentData = persistentData;
         this.successionService = successionService;
         this.storage = storage;
+        this.claimLookupReady = java.util.Objects.requireNonNull(claimLookupReady, "claimLookupReady");
+    }
+
+    /**
+     * Thread-safe, constant-time positional read without loading a Bukkit chunk. World names match
+     * persisted names exactly. Every stored claim counts, including orphaned fief/faction records.
+     * An absent service, disabled provider, incomplete load, or invalid coordinate record must never
+     * be interpreted as unclaimed. Resolve the plugin-published instance from ServicesManager.
+     */
+    public FiefClaimStatus getClaimStatus(String worldName, int chunkX, int chunkZ) {
+        if (worldName == null || worldName.isBlank() || !claimLookupReady.getAsBoolean()) {
+            return FiefClaimStatus.UNAVAILABLE;
+        }
+        FiefClaimStatus result = persistentData.getClaimStatus(worldName, chunkX, chunkZ);
+        return claimLookupReady.getAsBoolean() ? result : FiefClaimStatus.UNAVAILABLE;
     }
 
     public DisposableFiefsFixture beginDisposableFixture(String tag, Set<UUID> actors) {

@@ -51,6 +51,7 @@ public class StorageService {
     // plugin's own loaded flag remains false, but a caller that catches that failure still must not
     // be able to overwrite the unreadable file with stale or empty in-memory state.
     private boolean loadCompletedCleanly = true;
+    private volatile boolean claimCoverageComplete = false;
 
     public StorageService(ConfigService configService, Fiefs fiefs, PersistentData persistentData, Logger logger, MedievalFactionsIntegrator medievalFactionsIntegrator) {
         this(configService, fiefs, persistentData, logger, medievalFactionsIntegrator, null);
@@ -150,9 +151,16 @@ public class StorageService {
     }
 
     public void load() {
+        claimCoverageComplete = false;
         loadCompletedCleanly = true;
         loadFiefs();
         loadClaimedChunks();
+        claimCoverageComplete = loadCompletedCleanly && quarantinedChunks.isEmpty();
+    }
+
+    /** False until the whole load completed and every stored claim record could be read. */
+    public boolean isClaimCoverageComplete() {
+        return claimCoverageComplete;
     }
 
     /**

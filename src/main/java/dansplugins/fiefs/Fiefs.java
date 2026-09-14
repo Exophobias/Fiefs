@@ -81,6 +81,7 @@ public class Fiefs extends JavaPlugin {
      * overwrite fiefs.json and claimedChunks.json with {@code []}.
      */
     private boolean loaded = false;
+    private volatile boolean claimLookupReady = false;
     private volatile ConfigMigrator.Result configMigrationResult;
 
     /**
@@ -124,6 +125,7 @@ public class Fiefs extends JavaPlugin {
         // is what keeps Fiefs working on a server with no PatriamHeraldry. Nothing about heraldry is
         // named from here. See HeraldryPresence.
         HeraldryPresence.register(this, persistentData, medievalFactionsIntegrator);
+        claimLookupReady = true;
     }
 
     /**
@@ -131,6 +133,7 @@ public class Fiefs extends JavaPlugin {
      */
     @Override
     public void onDisable() {
+        claimLookupReady = false;
         persistentData.setHolderChangeObserver(ignored -> { });
         // Never save state we never loaded — that writes [] over the real save files. See #loaded.
         if (loaded) {
@@ -250,7 +253,8 @@ public class Fiefs extends JavaPlugin {
     }
 
     public FiefsAPI getAPI() {
-        return new FiefsAPI(persistentData, successionService, storageService);
+        return new FiefsAPI(persistentData, successionService, storageService,
+                () -> claimLookupReady && isEnabled() && storageService.isClaimCoverageComplete());
     }
 
     /**
