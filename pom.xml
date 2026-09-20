@@ -261,5 +261,14 @@
                 <skipTests>true</skipTests>
             </properties>
         </profile>
+        <!-- Paper 26.3 compatibility target; default tests retain their existing API. -->
+        <profile>
+            <id>paper-26.3</id>
+            <properties>
+                <paper.version>26.3.build.26-alpha</paper.version>
+                <!-- MockBukkit remains pinned to the default 26.1.2 API. -->
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
     </profiles>
 </project>
