@@ -8,9 +8,12 @@ import java.nio.channels.FileChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,8 +44,15 @@ public final class DeferredUnclaimStore {
     /** An unreadable or corrupt queue is a startup error; never silently discard it. */
     public synchronized void load() throws IOException {
         Set<Position> loaded = new LinkedHashSet<>();
-        if (Files.exists(file)) {
-            if (!Files.isRegularFile(file) || Files.size(file) > MAX_BYTES) {
+        BasicFileAttributes attributes;
+        try {
+            attributes = Files.readAttributes(file, BasicFileAttributes.class,
+                    LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException absent) {
+            attributes = null;
+        }
+        if (attributes != null) {
+            if (!attributes.isRegularFile() || attributes.size() > MAX_BYTES) {
                 throw new IOException("Deferred Fiefs unclaims are not a bounded regular file");
             }
             try (DataInputStream input = new DataInputStream(Files.newInputStream(file))) {
