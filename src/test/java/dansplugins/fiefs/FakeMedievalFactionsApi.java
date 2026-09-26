@@ -410,6 +410,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
 
         @Override public @NotNull FactionId getId() { return id; }
         @Override public @NotNull String getName() { return name; }
+        @Override public @NotNull String getDisplayName() { return getName(); }
         @Override public @NotNull String getDescription() { return ""; }
         @Override public @Nullable Location getHome() { return null; }
         @Override public @NotNull List<UUID> getMemberIds() { return memberIds; }
