@@ -1,7 +1,12 @@
 package dansplugins.fiefs;
 
+import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
+import com.google.gson.Gson;
+import com.google.gson.JsonParser;
 import dansplugins.fiefs.config.ConfigMigrator;
+import org.bukkit.World;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.plugin.ServicePriority;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +16,8 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,6 +51,12 @@ class FiefsLifecycleTest {
         return api;
     }
 
+    private static Map<String, String> claimRow(String world, int x, int z, String faction) {
+        return Map.of("world", "\"" + world + "\"", "X", Integer.toString(x),
+                "Z", Integer.toString(z), "faction", "\"" + faction + "\"",
+                "fief", "\"old-fief\"");
+    }
+
     @Test
     void enablesWhenMedievalFactionsIsPresent() {
         withMedievalFactions();
@@ -66,6 +79,43 @@ class FiefsLifecycleTest {
         server.getPluginManager().disablePlugin(fiefs);
         assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNAVAILABLE,
                 api.getClaimStatus("world", 0, 0));
+    }
+
+    @Test
+    void startupAndLaterWorldLoadRemoveOnlyClaimsNoLongerOwnedByTheirMfFaction()
+            throws Exception {
+        FakeMedievalFactionsApi factions = withMedievalFactions();
+        World loadedWorld = server.addSimpleWorld("loaded");
+        factions.setFactionClaim(loadedWorld.getChunkAt(1, 1), new FactionId("realm"));
+        factions.setFactionClaim(loadedWorld.getChunkAt(2, 2), new FactionId("conqueror"));
+        File dataFolder = PluginDataFolder.create();
+        File claims = new File(dataFolder, "claimedChunks.json");
+        Files.writeString(claims.toPath(), new Gson().toJson(List.of(
+                claimRow("loaded", 1, 1, "realm"),
+                claimRow("loaded", 2, 2, "realm"),
+                claimRow("loaded", 3, 3, "realm"),
+                claimRow("later", 4, 4, "realm"))), StandardCharsets.UTF_8);
+
+        Fiefs fiefs = MockBukkit.load(Fiefs.class);
+        PluginDataFolder.assertIsWhereThePluginLooked(dataFolder, fiefs);
+        var api = fiefs.getAPI();
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.CLAIMED,
+                api.getClaimStatus("loaded", 1, 1));
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNCLAIMED,
+                api.getClaimStatus("loaded", 2, 2));
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNCLAIMED,
+                api.getClaimStatus("loaded", 3, 3));
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.CLAIMED,
+                api.getClaimStatus("later", 4, 4), "unresolved worlds must wait for WorldLoad");
+        assertEquals(2, JsonParser.parseString(Files.readString(claims.toPath()))
+                .getAsJsonArray().size(), "startup must save stale removals before publishing coverage");
+
+        World later = server.addSimpleWorld("later");
+        server.getPluginManager().callEvent(new WorldLoadEvent(later));
+        assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNCLAIMED,
+                api.getClaimStatus("later", 4, 4));
+        assertEquals(1, JsonParser.parseString(Files.readString(claims.toPath()))
+                .getAsJsonArray().size());
     }
 
     @Test

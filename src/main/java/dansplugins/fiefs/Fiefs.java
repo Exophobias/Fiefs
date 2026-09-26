@@ -339,7 +339,18 @@ public class Fiefs extends JavaPlugin {
      */
     private void registerEventHandlers() {
         factionEventListener = new FactionEventListener(persistentData, successionService,
-                deferredUnclaims, storageService, failure -> {
+                deferredUnclaims, storageService, medievalFactionsIntegrator.getAPI(),
+                new FactionEventListener.CoverageGate() {
+                    @Override public boolean suspend() {
+                        boolean wasReady = claimLookupReady;
+                        claimLookupReady = false;
+                        return wasReady;
+                    }
+
+                    @Override public void restore(boolean wasReady) {
+                        claimLookupReady = wasReady;
+                    }
+                }, failure -> {
                     claimLookupReady = false;
                     getLogger().log(java.util.logging.Level.SEVERE,
                             "Fiefs claim cleanup cannot complete; stopping the server to prevent stale protection.",

@@ -3,6 +3,8 @@ package dansplugins.fiefs.listeners;
 import com.dansplugins.factionsystem.api.event.FactionDisbandedEvent;
 import com.dansplugins.factionsystem.api.event.FactionMemberLeftEvent;
 import com.dansplugins.factionsystem.api.event.FactionUnclaimedChunkEvent;
+import com.dansplugins.factionsystem.api.ClaimView;
+import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.externalapi.FiefClaimStatus;
 import dansplugins.fiefs.heraldry.HeraldryPresence;
@@ -19,7 +21,10 @@ import org.bukkit.event.world.WorldLoadEvent;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -41,22 +46,35 @@ public class FactionEventListener implements Listener {
     private final SuccessionService successionService;
     private final DeferredUnclaimStore deferredUnclaims;
     private final StorageService storage;
+    private final MedievalFactionsApi factions;
+    private final CoverageGate coverage;
     private final Consumer<Throwable> failClosed;
     private final Function<UUID, World> worldLookup;
 
+    /** Withhold positional absence until reconciliation and its disk barrier both complete. */
+    public interface CoverageGate {
+        boolean suspend();
+        void restore(boolean wasReady);
+    }
+
     public FactionEventListener(PersistentData persistentData, SuccessionService successionService,
                                 DeferredUnclaimStore deferredUnclaims, StorageService storage,
+                                MedievalFactionsApi factions, CoverageGate coverage,
                                 Consumer<Throwable> failClosed) {
-        this(persistentData, successionService, deferredUnclaims, storage, failClosed, Bukkit::getWorld);
+        this(persistentData, successionService, deferredUnclaims, storage, factions, coverage,
+                failClosed, Bukkit::getWorld);
     }
 
     FactionEventListener(PersistentData persistentData, SuccessionService successionService,
                          DeferredUnclaimStore deferredUnclaims, StorageService storage,
+                         MedievalFactionsApi factions, CoverageGate coverage,
                          Consumer<Throwable> failClosed, Function<UUID, World> worldLookup) {
         this.persistentData = persistentData;
         this.successionService = successionService;
         this.deferredUnclaims = deferredUnclaims;
         this.storage = storage;
+        this.factions = Objects.requireNonNull(factions, "factions");
+        this.coverage = Objects.requireNonNull(coverage, "coverage");
         this.failClosed = failClosed;
         this.worldLookup = worldLookup;
     }
@@ -96,12 +114,26 @@ public class FactionEventListener implements Listener {
 
     private void drain(World world) {
         List<DeferredUnclaimStore.Position> due = deferredUnclaims.forWorld(world.getUID());
-        if (due.isEmpty()) return;
-        boolean changed = false;
-        for (DeferredUnclaimStore.Position position : due) {
-            changed |= removeAt(world, position.x(), position.z());
-        }
+        // A crash can occur after MF commits an unclaim but before its deferred API event runs.
+        // Reconcile every persisted row when its world is available, even without a queued event.
+        List<ClaimedChunk> inWorld = persistentData.getClaimedChunks().stream()
+                .filter(chunk -> world.getName().equals(chunk.getWorld())).toList();
+        if (due.isEmpty() && inWorld.isEmpty()) return;
+        boolean wasReady = coverage.suspend();
         try {
+            boolean changed = false;
+            for (DeferredUnclaimStore.Position position : due) {
+                changed |= removeAt(world, position.x(), position.z());
+            }
+            Set<ClaimedChunk> live = new HashSet<>(persistentData.getClaimedChunks());
+            for (ClaimedChunk chunk : inWorld) {
+                if (!live.contains(chunk)) continue;
+                ClaimView mfClaim = factions.getClaimAt(world, chunk.getX(), chunk.getZ());
+                if (mfClaim == null || !mfClaim.getFactionId().getValue().equals(chunk.getFaction())) {
+                    removeClaim(world, chunk);
+                    changed = true;
+                }
+            }
             // Save the claim removal before acknowledging the event. If either write fails,
             // the durable queue remains and the same exact cleanup is safe to retry.
             if (changed) {
@@ -110,6 +142,7 @@ public class FactionEventListener implements Listener {
                 storage.forceClaimCleanupDurably();
             }
             deferredUnclaims.acknowledge(due);
+            coverage.restore(wasReady);
         } catch (IOException | RuntimeException failure) {
             throw unavailable(failure);
         }
@@ -119,16 +152,20 @@ public class FactionEventListener implements Listener {
         boolean removed = false;
         for (ClaimedChunk chunk : persistentData.getClaimedChunks()) {
             if (!chunk.isAt(world.getName(), x, z)) continue;
-            persistentData.removeChunk(chunk);
-            // A capital must not survive on ground its faction has unclaimed.
-            Fief owner = persistentData.getFief(chunk.getFief());
-            if (owner != null && owner.capitalIsAt(world.getName(), x, z)) {
-                owner.clearCapital();
-                persistentData.markDirty();
-            }
+            removeClaim(world, chunk);
             removed = true;
         }
         return removed;
+    }
+
+    private void removeClaim(World world, ClaimedChunk chunk) {
+        persistentData.removeChunk(chunk);
+        // A capital must not survive on ground its faction has unclaimed or lost.
+        Fief owner = persistentData.getFief(chunk.getFief());
+        if (owner != null && owner.capitalIsAt(world.getName(), chunk.getX(), chunk.getZ())) {
+            owner.clearCapital();
+            persistentData.markDirty();
+        }
     }
 
     private IllegalStateException unavailable(Throwable failure) {

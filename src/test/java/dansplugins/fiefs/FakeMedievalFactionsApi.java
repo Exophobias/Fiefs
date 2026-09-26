@@ -120,6 +120,10 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return false;
     }
 
+    @Override public void claimMutationBarrier() { }
+    @Override public void warMutationBarrier() { }
+    @Override public void factionDeletionBarrier(@NotNull FactionId faction) { }
+
     @Override
     public FactionView getFactionByPlayer(@NotNull UUID playerId) {
         String id = factionIdByPlayer.get(playerId);
@@ -149,6 +153,13 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
             return null;
         }
         return new FakeClaim(world.getUID(), chunkX, chunkZ, new FactionId(factionId));
+    }
+
+    @Override
+    public ClaimView getClaimAt(@NotNull UUID worldId, int chunkX, int chunkZ) {
+        String factionId = factionIdByChunkKey.get(key(worldId, chunkX, chunkZ));
+        return factionId == null ? null
+                : new FakeClaim(worldId, chunkX, chunkZ, new FactionId(factionId));
     }
 
     @Override
@@ -233,6 +244,13 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     }
 
     @Override
+    public @NotNull ApiResult claimIfUnclaimed(@NotNull FactionId faction, @NotNull UUID worldId,
+                                               int chunkX, int chunkZ) {
+        return factionIdByChunkKey.putIfAbsent(key(worldId, chunkX, chunkZ), faction.getValue()) == null
+                ? ApiResult.success() : ApiResult.failure("Chunk is already claimed");
+    }
+
+    @Override
     public @NotNull ApiResult transferClaim(@NotNull FactionId expectedOwner,
                                             @NotNull FactionId to,
                                             @NotNull UUID worldId,
@@ -250,6 +268,13 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     public @NotNull ApiResult unclaim(@NotNull Chunk chunk) {
         factionIdByChunkKey.remove(key(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ()));
         return ApiResult.success();
+    }
+
+    @Override
+    public @NotNull ApiResult unclaimIfOwned(@NotNull FactionId expectedOwner,
+                                            @NotNull UUID worldId, int chunkX, int chunkZ) {
+        return factionIdByChunkKey.remove(key(worldId, chunkX, chunkZ), expectedOwner.getValue())
+                ? ApiResult.success() : ApiResult.failure("The expected faction does not own that claim");
     }
 
     @Override
@@ -410,7 +435,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
 
         @Override public @NotNull FactionId getId() { return id; }
         @Override public @NotNull String getName() { return name; }
-        @Override public @NotNull String getDisplayName() { return getName(); }
+        public @NotNull String getDisplayName() { return getName(); }
         @Override public @NotNull String getDescription() { return ""; }
         @Override public @Nullable Location getHome() { return null; }
         @Override public @NotNull List<UUID> getMemberIds() { return memberIds; }
@@ -422,7 +447,7 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         @Override public @Nullable UUID getPrimaryOwnerId() { return primaryOwnerId; }
         @Override public @Nullable UUID getPrimaryOwnerTerm() { return primaryOwnerTerm; }
         // A nomination, which this fake never sets: Fiefs has its own heir and reads none of MF's.
-        @Override public @Nullable UUID getHeirId() { return null; }
+        public @Nullable UUID getHeirId() { return null; }
         // Zero is what MF reports for a faction with no tenure record. Fiefs reads neither.
         @Override public long getPrimaryOwnerSince() { return 0L; }
 
