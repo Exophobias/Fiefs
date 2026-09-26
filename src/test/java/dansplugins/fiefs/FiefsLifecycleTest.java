@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -78,6 +79,35 @@ class FiefsLifecycleTest {
         PluginDataFolder.assertIsWhereThePluginLooked(dataFolder, fiefs);
         assertEquals(dansplugins.fiefs.externalapi.FiefClaimStatus.UNAVAILABLE,
                 fiefs.getAPI().getClaimStatus("world", 0, 0));
+    }
+
+    @Test
+    void corruptDeferredUnclaimQueueBlocksActivationWithoutOverwritingClaims() throws Exception {
+        withMedievalFactions();
+        File dataFolder = PluginDataFolder.create();
+        File claims = new File(dataFolder, "claimedChunks.json");
+        String unchanged = "[]";
+        Files.writeString(claims.toPath(), unchanged, StandardCharsets.UTF_8);
+        File queue = new File(dataFolder, "pendingUnclaims.bin");
+        byte[] corrupt = {1, 2, 3};
+        Files.write(queue.toPath(), corrupt);
+
+        Exception refusal = null;
+        try {
+            MockBukkit.load(Fiefs.class);
+        } catch (Exception expected) {
+            refusal = expected;
+        }
+        assertNotNull(refusal, "unknown deferred unclaims must never be silently discarded");
+        boolean namedQueue = false;
+        for (Throwable cause = refusal; cause != null; cause = cause.getCause()) {
+            namedQueue |= cause.toString().contains("Deferred Fiefs unclaims");
+        }
+        assertTrue(namedQueue, "startup refusal must identify the corrupt queue");
+        assertNull(server.getServicesManager().load(dansplugins.fiefs.externalapi.FiefsAPI.class));
+        server.getPluginManager().disablePlugins();
+        assertEquals(unchanged, Files.readString(claims.toPath()));
+        assertTrue(java.util.Arrays.equals(corrupt, Files.readAllBytes(queue.toPath())));
     }
 
     @Test

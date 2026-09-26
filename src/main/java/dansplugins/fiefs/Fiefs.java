@@ -15,6 +15,7 @@ import dansplugins.fiefs.commands.abs.FiefsCommand;
 import dansplugins.fiefs.services.ChunkService;
 import dansplugins.fiefs.services.CommandService;
 import dansplugins.fiefs.services.ConfigService;
+import dansplugins.fiefs.services.DeferredUnclaimStore;
 import dansplugins.fiefs.services.StorageService;
 import dansplugins.fiefs.services.SuccessionService;
 import dansplugins.fiefs.utils.Logger;
@@ -69,6 +70,8 @@ public class Fiefs extends JavaPlugin {
     // service reports at SEVERE and WARNING about another plugin's rule, so it must never route
     // through the debug-gated dansplugins.fiefs.utils.Logger above.
     private final SuccessionService successionService = new SuccessionService(medievalFactionsIntegrator, persistentData, this);
+    private DeferredUnclaimStore deferredUnclaims;
+    private FactionEventListener factionEventListener;
 
     /**
      * Whether {@link StorageService#load()} completed, i.e. whether {@link #persistentData} actually
@@ -105,10 +108,18 @@ public class Fiefs extends JavaPlugin {
         }
 
         storageService.load();
+        deferredUnclaims = new DeferredUnclaimStore(getDataFolder().toPath().resolve("pendingUnclaims.bin"));
+        try {
+            deferredUnclaims.load();
+        } catch (IOException failure) {
+            throw new IllegalStateException("Deferred Fiefs unclaims are unreadable; refusing to enable",
+                    failure);
+        }
         loaded = true;
         // Loading a save is not a new grant. Observe only operations against the fully loaded store.
         persistentData.setHolderChangeObserver(this::publishHolderChange);
         registerEventHandlers();
+        factionEventListener.drainLoadedWorlds();
         initializeCommandService();
         scheduler.scheduleAutosave();
 
@@ -327,10 +338,18 @@ public class Fiefs extends JavaPlugin {
      * Registers the plugin's event handlers.
      */
     private void registerEventHandlers() {
+        factionEventListener = new FactionEventListener(persistentData, successionService,
+                deferredUnclaims, storageService, failure -> {
+                    claimLookupReady = false;
+                    getLogger().log(java.util.logging.Level.SEVERE,
+                            "Fiefs claim cleanup cannot complete; stopping the server to prevent stale protection.",
+                            failure);
+                    getServer().shutdown();
+                });
         ArrayList<Listener> listeners = new ArrayList<>(Arrays.asList(
                 new MoveListener(configService, chunkService, medievalFactionsIntegrator),
                 new InteractionListener(chunkService, persistentData, logger, this),
-                new FactionEventListener(persistentData, successionService),
+                factionEventListener,
                 // Reports which succession ladder is actually in force once the whole server is up,
                 // and drops a policy whose owning plugin stops functioning. Events rather than a
                 // scheduled check: this feature adds no timer, no sweep and no clock.

@@ -15,9 +15,12 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -112,6 +115,36 @@ public class StorageService {
                 || !expectedFiefs.equals(checkedRows(FIEFS_FILE_NAME))
                 || !expectedChunks.equals(checkedRows(CLAIMED_CHUNKS_FILE_NAME))) {
             throw new IllegalStateException("Fiefs persisted rows do not match owner memory");
+        }
+    }
+
+    /**
+     * Durability barrier for a queued MF unclaim. The ordinary atomic saves above make complete
+     * files visible, but an unforced rename can revert after power loss. The deferred event may
+     * only be acknowledged after both the claim removal and any capital change are forced.
+     */
+    public void forceClaimCleanupDurably() throws IOException {
+        forceFile(dataFile(FIEFS_FILE_NAME).toPath());
+        forceFile(dataFile(CLAIMED_CHUNKS_FILE_NAME).toPath());
+        syncDirectory(dataFile(CLAIMED_CHUNKS_FILE_NAME).toPath().getParent());
+    }
+
+    private static void forceFile(Path file) throws IOException {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ,
+                StandardOpenOption.WRITE)) {
+            channel.force(true);
+        }
+    }
+
+    private static void syncDirectory(Path directory) throws IOException {
+        try (FileChannel channel = FileChannel.open(directory, StandardOpenOption.READ)) {
+            channel.force(true);
+        } catch (UnsupportedOperationException unsupported) {
+            // Some providers cannot open or force directories; both files were forced above.
+        } catch (AccessDeniedException unsupportedWindowsDirectory) {
+            if (!System.getProperty("os.name", "").startsWith("Windows")) {
+                throw unsupportedWindowsDirectory;
+            }
         }
     }
 

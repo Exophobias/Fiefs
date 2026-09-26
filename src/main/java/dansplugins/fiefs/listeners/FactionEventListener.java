@@ -4,17 +4,25 @@ import com.dansplugins.factionsystem.api.event.FactionDisbandedEvent;
 import com.dansplugins.factionsystem.api.event.FactionMemberLeftEvent;
 import com.dansplugins.factionsystem.api.event.FactionUnclaimedChunkEvent;
 import dansplugins.fiefs.data.PersistentData;
+import dansplugins.fiefs.externalapi.FiefClaimStatus;
 import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.services.DeferredUnclaimStore;
+import dansplugins.fiefs.services.StorageService;
 import dansplugins.fiefs.services.SuccessionService;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.world.WorldLoadEvent;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Keeps fief state consistent with the faction state underneath it.
@@ -31,50 +39,102 @@ import java.util.UUID;
 public class FactionEventListener implements Listener {
     private final PersistentData persistentData;
     private final SuccessionService successionService;
+    private final DeferredUnclaimStore deferredUnclaims;
+    private final StorageService storage;
+    private final Consumer<Throwable> failClosed;
+    private final Function<UUID, World> worldLookup;
 
-    public FactionEventListener(PersistentData persistentData, SuccessionService successionService) {
+    public FactionEventListener(PersistentData persistentData, SuccessionService successionService,
+                                DeferredUnclaimStore deferredUnclaims, StorageService storage,
+                                Consumer<Throwable> failClosed) {
+        this(persistentData, successionService, deferredUnclaims, storage, failClosed, Bukkit::getWorld);
+    }
+
+    FactionEventListener(PersistentData persistentData, SuccessionService successionService,
+                         DeferredUnclaimStore deferredUnclaims, StorageService storage,
+                         Consumer<Throwable> failClosed, Function<UUID, World> worldLookup) {
         this.persistentData = persistentData;
         this.successionService = successionService;
+        this.deferredUnclaims = deferredUnclaims;
+        this.storage = storage;
+        this.failClosed = failClosed;
+        this.worldLookup = worldLookup;
     }
 
     // Faction renames need no handling: fiefs store the faction id, which is stable across renames.
 
     @EventHandler
     public void handle(FactionUnclaimedChunkEvent event) {
-        World world = Bukkit.getWorld(event.getWorldId());
-        if (world == null) {
-            // The world is not loaded, so no fief claim in it can be matched by name.
-            return;
+        World world = worldLookup.apply(event.getWorldId());
+        boolean possibleFiefClaim = world != null
+                ? persistentData.getClaimStatus(world.getName(), event.getChunkX(), event.getChunkZ())
+                    != FiefClaimStatus.UNCLAIMED
+                : persistentData.getClaimedChunks().stream().anyMatch(chunk ->
+                    chunk.getX() == event.getChunkX() && chunk.getZ() == event.getChunkZ());
+        if (!possibleFiefClaim) return;
+        // The API event identifies the world by UUID. Fiefs' legacy claim rows store only its
+        // name, so an unloaded world cannot be matched yet. Queue the exact position durably
+        // before touching claim state; a restart must not restore protection left at an old camp.
+        try {
+            deferredUnclaims.record(new DeferredUnclaimStore.Position(event.getWorldId(),
+                    event.getChunkX(), event.getChunkZ()));
+        } catch (IOException failure) {
+            throw unavailable(failure);
         }
+        if (world != null) drain(world);
+    }
 
-        ClaimedChunk toRemove = null;
-        for (ClaimedChunk claimedChunk : persistentData.getClaimedChunks()) {
-            if (claimedChunk.isAt(world.getName(), event.getChunkX(), event.getChunkZ())) {
-                toRemove = claimedChunk;
-                break;
+    @EventHandler
+    public void handle(WorldLoadEvent event) {
+        drain(event.getWorld());
+    }
+
+    /** Also drains worlds which were already loaded before Fiefs registered its listener. */
+    public void drainLoadedWorlds() {
+        for (World world : Bukkit.getWorlds()) drain(world);
+    }
+
+    private void drain(World world) {
+        List<DeferredUnclaimStore.Position> due = deferredUnclaims.forWorld(world.getUID());
+        if (due.isEmpty()) return;
+        boolean changed = false;
+        for (DeferredUnclaimStore.Position position : due) {
+            changed |= removeAt(world, position.x(), position.z());
+        }
+        try {
+            // Save the claim removal before acknowledging the event. If either write fails,
+            // the durable queue remains and the same exact cleanup is safe to retry.
+            if (changed) {
+                storage.save();
+                storage.verifyPersistence();
+                storage.forceClaimCleanupDurably();
             }
+            deferredUnclaims.acknowledge(due);
+        } catch (IOException | RuntimeException failure) {
+            throw unavailable(failure);
         }
+    }
 
-        if (toRemove == null) {
-            return;
+    private boolean removeAt(World world, int x, int z) {
+        boolean removed = false;
+        for (ClaimedChunk chunk : persistentData.getClaimedChunks()) {
+            if (!chunk.isAt(world.getName(), x, z)) continue;
+            persistentData.removeChunk(chunk);
+            // A capital must not survive on ground its faction has unclaimed.
+            Fief owner = persistentData.getFief(chunk.getFief());
+            if (owner != null && owner.capitalIsAt(world.getName(), x, z)) {
+                owner.clearCapital();
+                persistentData.markDirty();
+            }
+            removed = true;
         }
-        persistentData.removeChunk(toRemove);
+        return removed;
+    }
 
-        // The capital has to go with the ground, and it did not. ChunkService clears it when a
-        // holder types /fi unclaim, and its comment claimed that was "the only place a fief can lose
-        // a chunk it chose" -- which was never true. Medieval Factions unclaiming the chunk
-        // underneath, by /f unclaim, a disband, or a conquest, arrives here instead, and left a
-        // capital pointing at ground the fief no longer holds.
-        //
-        // That is not cosmetic. A fief's capital is what a rising is won and lost on, so a phantom
-        // one standing in wilderness hands the loyalist side an instant win: the chunk is not owned
-        // by the rebels, so it reads as taken the moment anybody claims it -- or, under a rule that
-        // asks who owns it, is already not theirs.
-        Fief owner = persistentData.getFief(toRemove.getFief());
-        if (owner != null && owner.capitalIsAt(world.getName(), event.getChunkX(), event.getChunkZ())) {
-            owner.clearCapital();
-            persistentData.markDirty();
-        }
+    private IllegalStateException unavailable(Throwable failure) {
+        failClosed.accept(failure);
+        return new IllegalStateException("Fiefs claim cleanup is unavailable; staff must restart after repair",
+                failure);
     }
 
     /**
