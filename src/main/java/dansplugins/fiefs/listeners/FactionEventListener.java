@@ -143,7 +143,7 @@ public class FactionEventListener implements Listener {
             }
             deferredUnclaims.acknowledge(due);
             coverage.restore(wasReady);
-        } catch (IOException | RuntimeException failure) {
+        } catch (IOException | RuntimeException | LinkageError failure) {
             throw unavailable(failure);
         }
     }
