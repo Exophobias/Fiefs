@@ -3,12 +3,21 @@ package dansplugins.fiefs;
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import com.dansplugins.factionsystem.api.event.FactionDisbandedEvent;
+import com.dansplugins.factionsystem.api.event.EmbassyOfferAttemptEvent;
 import com.dansplugins.factionsystem.api.event.FactionMemberLeftEvent;
 import com.dansplugins.factionsystem.api.event.FactionUnclaimedChunkEvent;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
+import dansplugins.fiefs.listeners.InteractionListener;
+import dansplugins.fiefs.services.ChunkService;
 import org.bukkit.Chunk;
 import org.bukkit.World;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.BlockInventoryHolder;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.ServicePriority;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +31,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * The player-driven paths, which a console sender cannot reach: every gameplay command early-returns
@@ -105,6 +117,101 @@ class FiefCommandTest {
         owner.performCommand("fi claim");
 
         assertEquals(1, fiefs.getPersistentData().getNumChunks());
+    }
+
+    @Test
+    void claimRefusesAnOfferedOrActiveEmbassyReservation() {
+        owner.performCommand("fi create \"Ashford Mill\"");
+        Chunk chunk = owner.getLocation().getChunk();
+        api.setFactionClaim(chunk, factionId);
+        api.setEmbassyReserved(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), true);
+
+        owner.performCommand("fi claim");
+        assertEquals(0, fiefs.getPersistentData().getNumChunks());
+
+        api.setEmbassyReserved(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), false);
+        owner.performCommand("fi claim");
+        assertEquals(1, fiefs.getPersistentData().getNumChunks());
+    }
+
+    @Test
+    void claimFailsClosedWhenEmbassyReservationLookupIsUnavailable() {
+        owner.performCommand("fi create \"Ashford Mill\"");
+        api.setFactionClaim(owner.getLocation().getChunk(), factionId);
+        api.setEmbassyReservationLookupAvailable(false);
+
+        owner.performCommand("fi claim");
+        assertEquals(0, fiefs.getPersistentData().getNumChunks());
+    }
+
+    @Test
+    void fiefClaimVetoesEmbassyOfferAndAcceptanceThroughRegisteredListener() {
+        owner.performCommand("fi create \"Ashford Mill\"");
+        Chunk chunk = owner.getLocation().getChunk();
+        api.setFactionClaim(chunk, factionId);
+        owner.performCommand("fi claim");
+        assertEquals(1, fiefs.getPersistentData().getNumChunks());
+
+        for (boolean accepting : new boolean[] {false, true}) {
+            EmbassyOfferAttemptEvent event = new EmbassyOfferAttemptEvent(
+                    chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), factionId,
+                    new FactionId("guest"), accepting, false);
+            server.getPluginManager().callEvent(event);
+            assertTrue(event.isCancelled());
+        }
+    }
+
+    @Test
+    void savedEmbassyOverlapFreezesHostAndGuestBlockBreakingExceptStaffBypass() {
+        PlayerMock guest = server.addPlayer("Guest");
+        owner.performCommand("fi create \"Ashford Mill\"");
+        Chunk chunk = owner.getLocation().getChunk();
+        api.setFactionClaim(chunk, factionId);
+        owner.performCommand("fi claim");
+        Block block = chunk.getBlock(2, 64, 2);
+        block.setType(Material.STONE);
+
+        BlockBreakEvent normal = new BlockBreakEvent(block, owner);
+        server.getPluginManager().callEvent(normal);
+        assertFalse(normal.isCancelled());
+
+        api.setEmbassyReserved(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), true);
+        BlockBreakEvent host = new BlockBreakEvent(block, owner);
+        BlockBreakEvent visitor = new BlockBreakEvent(block, guest);
+        server.getPluginManager().callEvent(host);
+        server.getPluginManager().callEvent(visitor);
+        assertTrue(host.isCancelled());
+        assertTrue(visitor.isCancelled(), "even a guest with no Fief must be denied in an overlap");
+
+        guest.addAttachment(fiefs, "mf.bypass", true);
+        BlockBreakEvent staff = new BlockBreakEvent(block, guest);
+        server.getPluginManager().callEvent(staff);
+        assertFalse(staff.isCancelled());
+    }
+
+    @Test
+    void alreadyOpenFiefStorageCannotBeEmptiedAfterAnEmbassyOverlapAppears() {
+        PlayerMock guest = server.addPlayer("Guest");
+        owner.performCommand("fi create \"Ashford Mill\"");
+        Chunk chunk = owner.getLocation().getChunk();
+        api.setFactionClaim(chunk, factionId);
+        owner.performCommand("fi claim");
+        api.setEmbassyReserved(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ(), true);
+
+        BlockInventoryHolder holder = mock(BlockInventoryHolder.class);
+        when(holder.getBlock()).thenReturn(chunk.getBlock(2, 64, 2));
+        Inventory inventory = mock(Inventory.class);
+        when(inventory.getHolder()).thenReturn(holder);
+        InventoryClickEvent click = mock(InventoryClickEvent.class);
+        when(click.getWhoClicked()).thenReturn(guest);
+        when(click.getInventory()).thenReturn(inventory);
+        InteractionListener listener = new InteractionListener(
+                new ChunkService(fiefs.getPersistentData(), null, null),
+                fiefs.getPersistentData(), null, fiefs, api);
+
+        listener.handle(click);
+
+        verify(click).setCancelled(true);
     }
 
     /** limitLand=false must lift the demesne cap that power otherwise imposes. */

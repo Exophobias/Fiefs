@@ -8,6 +8,7 @@ import dansplugins.fiefs.externalapi.FiefHolderChangedEvent;
 import dansplugins.fiefs.heraldry.HeraldryPresence;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
 import dansplugins.fiefs.listeners.FactionEventListener;
+import dansplugins.fiefs.listeners.EmbassyOfferBoundaryListener;
 import dansplugins.fiefs.listeners.InteractionListener;
 import dansplugins.fiefs.listeners.MoveListener;
 import dansplugins.fiefs.listeners.SuccessionPolicyListener;
@@ -72,6 +73,7 @@ public class Fiefs extends JavaPlugin {
     private final SuccessionService successionService = new SuccessionService(medievalFactionsIntegrator, persistentData, this);
     private DeferredUnclaimStore deferredUnclaims;
     private FactionEventListener factionEventListener;
+    private EmbassyOfferBoundaryListener embassyBoundaryListener;
 
     /**
      * Whether {@link StorageService#load()} completed, i.e. whether {@link #persistentData} actually
@@ -120,6 +122,7 @@ public class Fiefs extends JavaPlugin {
         persistentData.setHolderChangeObserver(this::publishHolderChange);
         registerEventHandlers();
         factionEventListener.drainLoadedWorlds();
+        embassyBoundaryListener.auditLoadedWorlds();
         initializeCommandService();
         scheduler.scheduleAutosave();
 
@@ -357,9 +360,14 @@ public class Fiefs extends JavaPlugin {
                             failure);
                     getServer().shutdown();
                 });
+        embassyBoundaryListener = new EmbassyOfferBoundaryListener(getAPI(), persistentData,
+                medievalFactionsIntegrator.getAPI(), getServer().getWorlds(),
+                message -> getLogger().severe(message));
         ArrayList<Listener> listeners = new ArrayList<>(Arrays.asList(
                 new MoveListener(configService, chunkService, medievalFactionsIntegrator),
-                new InteractionListener(chunkService, persistentData, logger, this),
+                new InteractionListener(chunkService, persistentData, logger, this,
+                        medievalFactionsIntegrator.getAPI()),
+                embassyBoundaryListener,
                 factionEventListener,
                 // Reports which succession ladder is actually in force once the whole server is up,
                 // and drops a policy whose owning plugin stops functioning. Events rather than a

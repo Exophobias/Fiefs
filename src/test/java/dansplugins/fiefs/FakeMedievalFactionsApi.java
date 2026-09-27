@@ -43,6 +43,8 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     private final Map<String, FakeFaction> factionsById = new HashMap<>();
     private final Map<UUID, String> factionIdByPlayer = new HashMap<>();
     private final Map<String, String> factionIdByChunkKey = new HashMap<>();
+    private final Set<String> reservedEmbassyChunks = new HashSet<>();
+    private boolean embassyReservationLookupAvailable = true;
     private final Map<UUID, Double> powerByPlayer = new HashMap<>();
     private final Map<String, String> flagsByFactionAndName = new HashMap<>();
 
@@ -87,6 +89,29 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     /** Marks a chunk as claimed by a faction, as MF would after /f claim. */
     public void setFactionClaim(Chunk chunk, FactionId faction) {
         factionIdByChunkKey.put(key(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ()), faction.getValue());
+    }
+
+    public void setEmbassyReserved(UUID worldId, int chunkX, int chunkZ, boolean reserved) {
+        String key = key(worldId, chunkX, chunkZ);
+        if (reserved) reservedEmbassyChunks.add(key);
+        else reservedEmbassyChunks.remove(key);
+    }
+
+    public void setEmbassyReservationLookupAvailable(boolean available) {
+        embassyReservationLookupAvailable = available;
+    }
+
+    @Override
+    public boolean isEmbassyReservedAt(@NotNull UUID worldId, int chunkX, int chunkZ) {
+        if (!embassyReservationLookupAvailable) {
+            throw new IllegalStateException("Embassy reservation lookup unavailable");
+        }
+        return reservedEmbassyChunks.contains(key(worldId, chunkX, chunkZ));
+    }
+
+    @Override
+    public boolean hasEmbassyForFaction(@NotNull FactionId faction) {
+        return false;
     }
 
     public void setPower(UUID playerId, double power) {

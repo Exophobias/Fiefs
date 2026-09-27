@@ -63,6 +63,25 @@ public class ChunkService {
             return false;
         }
 
+        // Offered as well as active embassies reserve the chunk. Checking immediately before the
+        // write avoids giving a fief a parcel already promised to another realm. An unavailable or
+        // older MF API cannot establish that it is free, so the claim fails closed.
+        final boolean embassyReserved;
+        try {
+            embassyReserved = medievalFactionsIntegrator.getAPI().isEmbassyReservedAt(
+                    chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+        } catch (RuntimeException | LinkageError unavailable) {
+            player.sendMessage(Component.text(
+                    "Embassy reservations could not be checked; fief claim refused.", NamedTextColor.RED));
+            return false;
+        }
+        if (embassyReserved) {
+            player.sendMessage(Component.text(
+                    "This chunk is reserved for an embassy and cannot be claimed by a fief.",
+                    NamedTextColor.RED));
+            return false;
+        }
+
         ClaimedChunk newClaimedChunk = new ClaimedChunk(chunk, fief.getFactionId(), fief.getName());
         persistentData.addChunk(newClaimedChunk);
         player.sendMessage(Component.text("Claimed.", NamedTextColor.GREEN));

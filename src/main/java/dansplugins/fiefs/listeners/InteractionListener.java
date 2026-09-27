@@ -1,5 +1,6 @@
 package dansplugins.fiefs.listeners;
 
+import com.dansplugins.factionsystem.api.MedievalFactionsApi;
 import dansplugins.fiefs.Fiefs;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.objects.ClaimedChunk;
@@ -9,6 +10,8 @@ import dansplugins.fiefs.utils.Logger;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.DoubleChest;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
@@ -18,7 +21,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.inventory.BlockInventoryHolder;
+import org.bukkit.inventory.InventoryHolder;
+
+import java.util.List;
 
 /**
  * @author Daniel McCoy Stephenson
@@ -28,12 +37,15 @@ public class InteractionListener implements Listener {
     private final PersistentData persistentData;
     private final Logger logger;
     private final Fiefs fiefs;
+    private final MedievalFactionsApi factions;
 
-    public InteractionListener(ChunkService chunkService, PersistentData persistentData, Logger logger, Fiefs fiefs) {
+    public InteractionListener(ChunkService chunkService, PersistentData persistentData, Logger logger,
+                               Fiefs fiefs, MedievalFactionsApi factions) {
         this.chunkService = chunkService;
         this.persistentData = persistentData;
         this.logger = logger;
         this.fiefs = fiefs;
+        this.factions = factions;
     }
 
     @EventHandler()
@@ -48,6 +60,9 @@ public class InteractionListener implements Listener {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
+            // Normal Fiefs behavior leaves this case to MF. A saved fief/embassy overlap is an
+            // inconsistency, so neither side may edit it while staff resolve the competing grants.
+            if (embassyConflict(claimedChunk, player)) event.setCancelled(true);
             return;
         }
 
@@ -69,6 +84,7 @@ public class InteractionListener implements Listener {
 
         Fief playersFief = persistentData.getFief(player);
         if (playersFief == null) {
+            if (embassyConflict(claimedChunk, player)) event.setCancelled(true);
             return;
         }
 
@@ -200,11 +216,48 @@ public class InteractionListener implements Listener {
         }
     }
 
+    /** An already-open chest must not bypass a conflict discovered after it was opened. */
+    @EventHandler
+    public void handle(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (overlappingInventory(event.getInventory().getHolder(), player)) event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void handle(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (overlappingInventory(event.getInventory().getHolder(), player)) event.setCancelled(true);
+    }
+
+    private boolean overlappingInventory(InventoryHolder holder, Player player) {
+        List<Block> blocks;
+        if (holder instanceof DoubleChest chest) {
+            blocks = java.util.stream.Stream.of(blockOf(chest.getLeftSide()),
+                    blockOf(chest.getRightSide())).filter(java.util.Objects::nonNull).toList();
+        } else {
+            Block block = blockOf(holder);
+            blocks = block == null ? List.of() : List.of(block);
+        }
+        for (Block block : blocks) {
+            ClaimedChunk claim = chunkService.getClaimedChunk(block.getChunk());
+            if (claim != null && embassyConflict(claim, player)) return true;
+        }
+        return false;
+    }
+
+    private static Block blockOf(InventoryHolder holder) {
+        if (holder instanceof BlockInventoryHolder blockHolder) return blockHolder.getBlock();
+        if (holder instanceof BlockState state) return state.getBlock();
+        if (holder instanceof Entity entity) return entity.getLocation().getBlock();
+        return null;
+    }
+
     private boolean shouldEventBeCancelled(ClaimedChunk claimedChunk, Player player) {
         if (claimedChunk == null) {
             logger.log("Claimed chunk was null.");
             return false;
         }
+        if (embassyConflict(claimedChunk, player)) return true;
         Fief chunkHolder = persistentData.getFief(claimedChunk.getFief());
         Fief playersFief = persistentData.getFief(player);
 
@@ -229,5 +282,16 @@ public class InteractionListener implements Listener {
         }
 
         return !chunkHolder.isSameFief(playersFief);
+    }
+
+    /** A corrupt overlap is frozen for both realms, except a staff member with MF bypass. */
+    private boolean embassyConflict(ClaimedChunk claim, Player player) {
+        if (!claim.getWorld().equals(player.getWorld().getName())) return true;
+        try {
+            return factions.isEmbassyReservedAt(player.getWorld().getUID(), claim.getX(), claim.getZ())
+                    && !player.hasPermission("mf.bypass");
+        } catch (RuntimeException | LinkageError unavailable) {
+            return true;
+        }
     }
 }
