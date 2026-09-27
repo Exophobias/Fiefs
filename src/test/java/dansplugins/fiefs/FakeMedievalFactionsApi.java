@@ -3,7 +3,9 @@ package dansplugins.fiefs;
 import com.dansplugins.factionsystem.api.ApiOutcome;
 import com.dansplugins.factionsystem.api.ApiResult;
 import com.dansplugins.factionsystem.api.ClaimOverrideProvider;
+import com.dansplugins.factionsystem.api.ClaimAction;
 import com.dansplugins.factionsystem.api.ClaimView;
+import com.dansplugins.factionsystem.api.EmbassyAccessDecision;
 import com.dansplugins.factionsystem.api.FactionHierarchyView;
 import com.dansplugins.factionsystem.api.FactionId;
 import com.dansplugins.factionsystem.api.FactionRoleView;
@@ -112,6 +114,12 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     @Override
     public boolean hasEmbassyForFaction(@NotNull FactionId faction) {
         return false;
+    }
+
+    @Override
+    public EmbassyAccessDecision embassyAccessAt(@NotNull UUID playerId, @NotNull UUID worldId,
+                                                 int chunkX, int chunkZ, @NotNull ClaimAction action) {
+        return EmbassyAccessDecision.NONE;
     }
 
     public void setPower(UUID playerId, double power) {
