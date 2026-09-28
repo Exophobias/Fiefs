@@ -28,7 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CheckClaimCommandTest {
 
     private final PersistentData persistentData = new PersistentData(null);
-    private final ChunkService chunkService = new ChunkService(persistentData, null);
+    // These lookup-only cases never enter the claim path that needs the MF/config services.
+    private final ChunkService chunkService = new ChunkService(persistentData, null, null);
     private final CheckClaimCommand checkClaimCommand = new CheckClaimCommand(persistentData, chunkService);
     private final List<String> messages = new ArrayList<>();
 
