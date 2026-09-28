@@ -11,7 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Upstream's offline-player registry on the same MockBukkit lifecycle as the Patriam tests.
+ * Upstream's offline-player registry adapted to Patriam's nonblocking cached lookup.
+ * Enumerating every offline player or resolving an uncached name must fail these tests.
  * Each test installs a fresh server and calls {@link #uninstall()} afterward; the Bukkit
  * singleton must never outlive a test or replace the server used by the lifecycle suite.
  */
@@ -43,7 +44,17 @@ public final class FakeBukkitServer {
         private final Map<UUID, OfflinePlayer> players = new LinkedHashMap<>();
 
         @Override public OfflinePlayer[] getOfflinePlayers() {
-            return players.values().toArray(OfflinePlayer[]::new);
+            throw new AssertionError("Name resolution must use the already-loaded player cache");
+        }
+
+        @Override public OfflinePlayer getOfflinePlayerIfCached(String name) {
+            return players.values().stream()
+                    .filter(player -> player.getName() != null && player.getName().equalsIgnoreCase(name))
+                    .findFirst().orElse(null);
+        }
+
+        @Override public OfflinePlayer getOfflinePlayer(String name) {
+            throw new AssertionError("Name resolution must never attempt a blocking profile lookup");
         }
 
         @Override public OfflinePlayer getOfflinePlayer(UUID uuid) {

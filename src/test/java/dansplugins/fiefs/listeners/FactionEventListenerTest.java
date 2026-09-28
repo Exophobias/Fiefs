@@ -34,7 +34,8 @@ class FactionEventListenerTest {
     private static final Logger QUIET_LOGGER = new Logger(null) {
         @Override public void log(String message) { }
     };
-    private final PersistentData data = new PersistentData(null);
+    private PersistentData data;
+    private MedievalFactionsIntegrator integrator;
     private final FakeMedievalFactionsApi factions = new FakeMedievalFactionsApi();
     private FactionEventListener listener;
 
@@ -44,8 +45,9 @@ class FactionEventListenerTest {
         var plugin = FakeBukkitServer.registerPlugin("Fiefs");
         Bukkit.getServicesManager().register(MedievalFactionsApi.class, factions,
                 FakeBukkitServer.registerPlugin("MedievalFactions"), ServicePriority.Normal);
-        MedievalFactionsIntegrator integrator = new MedievalFactionsIntegrator(QUIET_LOGGER);
+        integrator = new MedievalFactionsIntegrator(QUIET_LOGGER);
         assertTrue(integrator.resolve());
+        data = new PersistentData(integrator);
         SuccessionService succession = new SuccessionService(integrator, data, plugin);
         listener = new FactionEventListener(data, succession, null, null, factions,
                 new FactionEventListener.CoverageGate() {
@@ -58,7 +60,7 @@ class FactionEventListenerTest {
 
     private Fief fief(String name, String faction, UUID owner) {
         factions.createFaction(faction, faction, owner);
-        Fief fief = new Fief(null, name, owner, faction, QUIET_LOGGER);
+        Fief fief = new Fief(integrator, name, owner, faction, QUIET_LOGGER);
         data.addFief(fief);
         return fief;
     }
