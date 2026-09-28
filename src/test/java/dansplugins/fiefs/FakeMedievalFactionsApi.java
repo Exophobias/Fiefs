@@ -120,9 +120,11 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return false;
     }
 
-    @Override public void claimMutationBarrier() { }
-    @Override public void warMutationBarrier() { }
-    @Override public void factionDeletionBarrier(@NotNull FactionId faction) { }
+    // These helpers also support the newer local fork. Its additions have not all reached
+    // public main yet, so they are ordinary methods when compiling against that API.
+    public void claimMutationBarrier() { }
+    public void warMutationBarrier() { }
+    public void factionDeletionBarrier(@NotNull FactionId faction) { }
 
     @Override
     public FactionView getFactionByPlayer(@NotNull UUID playerId) {
@@ -155,7 +157,6 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return new FakeClaim(world.getUID(), chunkX, chunkZ, new FactionId(factionId));
     }
 
-    @Override
     public ClaimView getClaimAt(@NotNull UUID worldId, int chunkX, int chunkZ) {
         String factionId = factionIdByChunkKey.get(key(worldId, chunkX, chunkZ));
         return factionId == null ? null
@@ -243,7 +244,6 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return ApiResult.success();
     }
 
-    @Override
     public @NotNull ApiResult claimIfUnclaimed(@NotNull FactionId faction, @NotNull UUID worldId,
                                                int chunkX, int chunkZ) {
         return factionIdByChunkKey.putIfAbsent(key(worldId, chunkX, chunkZ), faction.getValue()) == null
@@ -270,7 +270,6 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
         return ApiResult.success();
     }
 
-    @Override
     public @NotNull ApiResult unclaimIfOwned(@NotNull FactionId expectedOwner,
                                             @NotNull UUID worldId, int chunkX, int chunkZ) {
         return factionIdByChunkKey.remove(key(worldId, chunkX, chunkZ), expectedOwner.getValue())
