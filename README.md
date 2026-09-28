@@ -6,9 +6,23 @@ Fiefs is a Minecraft plugin that allows faction members to create fiefs (sub-fac
 
 ## Installation
 
+### Patriam fork and supported target
+
+This fork targets **Paper 26.3 on Java 25**, declared in
+[`minecraft-versions.json`](minecraft-versions.json). Build the shipping jar with
+`mvn -Ppaper-26.3 clean package`; the default API remains paired with the MockBukkit test runtime.
+CI checks the shipping jar's Bukkit references and Java bytecode against the resolved Paper API.
+These source/build checks do not replace a live server acceptance check.
+
+The source integrates Dans-Plugins/Fiefs through `a4def94` (`0.12.1-SNAPSHOT` upstream), while
+preserving the published `0.12.0-SNAPSHOT-8-8-2026` coordinate and the Patriam stable MF API,
+succession, storage and configuration contracts. Upstream's new external usage-reporting feature
+is intentionally omitted, with no new telemetry settings or operator schema change.
+
 ### First Time Installation
 
-1. Download the plugin from the [releases page](https://github.com/Dans-Plugins/Fiefs/releases).
+1. Build this fork from source with the maintained Medieval Factions API and Heraldry API available
+   as described in `pom.xml`; upstream download jars do not contain the Patriam integration.
 2. Place the jar in the `plugins` folder of your server.
 3. Restart your server.
 

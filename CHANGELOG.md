@@ -6,10 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Upstream integration — 2026-09-28
+
+- Integrated Dans-Plugins/Fiefs through `a4def94` (upstream source `0.12.1-SNAPSHOT`).
+  Keep the published `0.12.0-SNAPSHOT-8-8-2026` Maven coordinate for existing Patriam consumers.
+- Adopted upstream command, UUID, startup and faction-event regression coverage, adapting it to
+  Adventure messages, the stable Medieval Factions service/events and Patriam succession.
+  The existing resolver already delays lookup until enable and preserves failed-start save guards.
+- Retained upstream's published-release trigger and existing-JAR attachment guard. Declare the
+  shipping Paper 26.3 / Java 25 target and check the packaged Bukkit references against the exact
+  resolved Paper API, retaining the upstream compatibility checker's bytecode and member checks.
+- Intentionally omit upstream's new external usage reporting, its client and configuration keys.
+  The fork retains its stable API, guarded storage, strict schema-1 configuration and no-backup
+  migration path; this integration does not change the operator configuration schema.
+
 ### Added
 
 - Schema-1 configuration adoption. Existing unversioned files migrate automatically from schema 0
-  into the bundled key order with exact backups, strict ambiguous/future YAML rejection, preserved
+  into the bundled key order without backups, strict ambiguous/future YAML rejection, preserved
   explicit and extension values, and startup diagnostics. Invalid config now blocks startup before
   Fiefs reads or can rewrite mutable fief data.
 - A `Dev Release` workflow, which republishes a rolling `dev` prerelease of `main` on every non-documentation push. This is what Dan's Plugin Manager's experimental channel installs from: `/dpm get fiefs --experimental` reads `releases/tags/dev`, so without it there is nothing for that command to download. The prerelease is unreleased, unreviewed code and is marked as such.

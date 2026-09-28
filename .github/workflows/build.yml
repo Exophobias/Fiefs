@@ -250,6 +250,32 @@ jobs:
       - name: Verify Paper 26.3 compatibility and package the plugin
         run: mvn -B --no-transfer-progress -Ppaper-26.3 clean package
 
+      # Upstream's checker normally downloads Spigot. This fork uses Paper APIs, so resolve
+      # the shipping API from Maven and give the same member/bytecode checker that exact jar.
+      - name: Check the packaged Bukkit API references and Java target
+        run: |
+          cp="$RUNNER_TEMP/fiefs-paper-classpath.txt"
+          mvn -B -q --no-transfer-progress -Ppaper-26.3 dependency:build-classpath "-Dmdep.outputFile=$cp"
+          api=$(tr ':' '\n' < "$cp" | grep -E '/io/papermc/paper/paper-api/26\.3\.build\.[^/]+/paper-api-[^/]+\.jar$')
+          if [ "$(printf '%s\n' "$api" | grep -c .)" -ne 1 ]; then
+            echo "::error::Expected exactly one resolved Paper 26.3 API jar."; exit 1
+          fi
+          checker="$RUNNER_TEMP/fiefs-check-api-compat.py"
+          curl -fsSL -o "$checker" https://raw.githubusercontent.com/Dans-Plugins/release-gates/v12/gates/check_api_compat.py
+          python3 - "$checker" "$api" <<'PY'
+          import importlib.util
+          import sys
+          spec = importlib.util.spec_from_file_location("upstream_api_check", sys.argv[1])
+          checker = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(checker)
+          def paper_api(version):
+              if version != "26.3":
+                  raise SystemExit(f"No vetted Paper API supplied for {version}")
+              return sys.argv[2]
+          checker.api_jar = paper_api
+          sys.exit(checker.main([sys.argv[1], "--versions", "minecraft-versions.json", "target/Fiefs.jar"]))
+          PY
+
       - name: Verify the jar declares a main class that exists inside it
         run: |
           jar=target/Fiefs.jar
