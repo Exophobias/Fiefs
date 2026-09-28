@@ -19,9 +19,13 @@ match neither.
 
 | Jar | Source | Commit | Built with |
 |---|---|---|---|
-| `patriamheraldry-api-1.0.0.jar` | `Exophobias/PatriamHeraldry` (`master`) | `63f77edc1cf86f4b4ebb4e821fecd8e321b4a188` | `./mvnw -pl patriamheraldry-api -am install`, JDK 25 |
+| `patriamheraldry-api-1.0.0.jar` | `Exophobias/PatriamHeraldry` (`master`) | `9c2e73478c3b07a50941283efb3a30097dfe072a` | `mvn -pl patriamheraldry-api -am clean package`, JDK 25 |
 
-That commit is dated 2026-08-09. `CHECKSUMS` records the sha256 of each file as committed, and CI
+Refreshed on 2026-09-28 from that clean commit, with all 120 API tests passing. It includes
+`SubjectPublicationChangedEvent` and the current `SubjectResolver` contract required by
+`FiefSubjectResolver`. The earlier August API copy lacked those members and failed compilation.
+
+`CHECKSUMS` records the sha256 of each file as committed, and CI
 checks it. That proves the file is the one that was vetted and nothing more: it **cannot** tell you
 the jar is up to date, because the source it came from is unreachable from CI, so a stale jar passes
 the gate happily.
@@ -38,13 +42,16 @@ From a machine that can see both clones:
 
 ```
 cd ../PatriamHeraldry
-./mvnw -pl patriamheraldry-api -am install
-cp ~/.m2/repository/com/github/exophobias/patriamheraldry-api/1.0.0/patriamheraldry-api-1.0.0.jar \
+./mvnw -pl patriamheraldry-api -am clean package
+cp patriamheraldry-api/target/patriamheraldry-api-1.0.0.jar \
    ../Fiefs/libs/
 cd ../Fiefs/libs && sha256sum -b *.jar *.pom | sed 's/ \*/ */' > CHECKSUMS
 ```
 
-Then run the suite. `HeraldryAbsenceTest` is what catches a version skew that matters: if the api
+Use the shared build lock and a clean source checkout so the recorded commit describes the
+actual jar. Packaging avoids installing Heraldry's parent-bearing descriptor; CI installs the
+standalone descriptor beside this jar. Then run the suite. `HeraldryAbsenceTest` catches a
+version skew that matters: if the api
 moved a type this plugin implements, the bridge stops compiling, and if the api is missing entirely,
 that tier proves Fiefs still works without it.
 
