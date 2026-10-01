@@ -55,7 +55,7 @@
 
              See libs/README.md. Unlike MedievalFactions this is a SOFT dependency: see plugin.yml and
              dansplugins.fiefs.heraldry.HeraldryPresence. -->
-        <patriamheraldry.version>1.0.0</patriamheraldry.version>
+        <patriamheraldry.version>1.1.0</patriamheraldry.version>
 
         <!-- MockBukkit 4.114.0 requires JUnit 6, not 5. -->
         <junit.version>6.1.0</junit.version>
