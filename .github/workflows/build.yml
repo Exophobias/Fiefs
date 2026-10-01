@@ -127,20 +127,20 @@ jobs:
       # would die on a missing parent pom. The checked-in .pom is standalone and parentless.
       #
       # Runs unconditionally and after the cache restore, for the reason the fork's install step does:
-      # the cache key hashes **/pom.xml, which does not match libs/patriamheraldry-api-1.0.0.pom, so a
+      # the cache key hashes **/pom.xml, which does not match libs/patriamheraldry-api-1.1.0.pom, so a
       # refreshed jar in libs/ would otherwise be shadowed by a cached copy of the old one.
       - name: Install the vendored API jar
         working-directory: libs
         run: |
           mvn -B --no-transfer-progress install:install-file \
-            -Dfile=patriamheraldry-api-1.0.0.jar -DpomFile=patriamheraldry-api-1.0.0.pom
+            -Dfile=patriamheraldry-api-1.1.0.jar -DpomFile=patriamheraldry-api-1.1.0.pom
 
       # Reading the descriptor back is the exact operation that fails when the wrong one lands, and it
       # fails here with a clear message rather than a minute later inside an unrelated-looking Maven
       # dependency-collection error.
       - name: Verify the vendored descriptor resolves standalone
         run: |
-          pom=~/.m2/repository/com/github/exophobias/patriamheraldry-api/1.0.0/patriamheraldry-api-1.0.0.pom
+          pom=~/.m2/repository/com/github/exophobias/patriamheraldry-api/1.1.0/patriamheraldry-api-1.1.0.pom
           # Tested for absence first on purpose: `grep -q` on a missing file also returns non-zero, so
           # a parent check alone would report a pom that was never installed as passing.
           if [ ! -f "$pom" ]; then

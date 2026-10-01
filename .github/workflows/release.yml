@@ -85,10 +85,13 @@ jobs:
         run: |
           sha256sum -c CHECKSUMS
           mvn -B --no-transfer-progress install:install-file \
-            -Dfile=patriamheraldry-api-1.0.0.jar -DpomFile=patriamheraldry-api-1.0.0.pom
+            -Dfile=patriamheraldry-api-1.1.0.jar -DpomFile=patriamheraldry-api-1.1.0.pom
 
-      - name: Build with Maven
-        run: mvn -B --no-transfer-progress clean package
+      - name: Build and test
+        run: mvn -B --no-transfer-progress clean verify
+
+      - name: Build the 26.3 release jar
+        run: mvn -B --no-transfer-progress -Ppaper-26.3 clean package
 
       # Named explicitly rather than globbed. maven-shade-plugin is gone, so there is no
       # original-*.jar to exclude any more, and finalName pins the output to exactly this file.
