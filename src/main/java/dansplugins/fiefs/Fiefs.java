@@ -17,6 +17,7 @@ import dansplugins.fiefs.services.ChunkService;
 import dansplugins.fiefs.services.CommandService;
 import dansplugins.fiefs.services.ConfigService;
 import dansplugins.fiefs.services.DeferredUnclaimStore;
+import dansplugins.fiefs.services.FiefInteractionPolicy;
 import dansplugins.fiefs.services.StorageService;
 import dansplugins.fiefs.services.SuccessionService;
 import dansplugins.fiefs.utils.Logger;
@@ -74,6 +75,7 @@ public class Fiefs extends JavaPlugin {
     private DeferredUnclaimStore deferredUnclaims;
     private FactionEventListener factionEventListener;
     private EmbassyOfferBoundaryListener embassyBoundaryListener;
+    private FiefInteractionPolicy interactionPolicy;
 
     /**
      * Whether {@link StorageService#load()} completed, i.e. whether {@link #persistentData} actually
@@ -268,7 +270,8 @@ public class Fiefs extends JavaPlugin {
 
     public FiefsAPI getAPI() {
         return new FiefsAPI(persistentData, successionService, storageService,
-                () -> claimLookupReady && isEnabled() && storageService.isClaimCoverageComplete());
+                () -> claimLookupReady && isEnabled() && storageService.isClaimCoverageComplete(),
+                (player, block) -> interactionPolicy != null && interactionPolicy.canInteractWithBlock(player, block));
     }
 
     /**
@@ -341,6 +344,8 @@ public class Fiefs extends JavaPlugin {
      * Registers the plugin's event handlers.
      */
     private void registerEventHandlers() {
+        interactionPolicy = new FiefInteractionPolicy(chunkService, persistentData,
+                medievalFactionsIntegrator.getAPI(), logger);
         factionEventListener = new FactionEventListener(persistentData, successionService,
                 deferredUnclaims, storageService, medievalFactionsIntegrator.getAPI(),
                 new FactionEventListener.CoverageGate() {
@@ -366,7 +371,7 @@ public class Fiefs extends JavaPlugin {
         ArrayList<Listener> listeners = new ArrayList<>(Arrays.asList(
                 new MoveListener(configService, chunkService, medievalFactionsIntegrator),
                 new InteractionListener(chunkService, persistentData, logger, this,
-                        medievalFactionsIntegrator.getAPI()),
+                        interactionPolicy),
                 embassyBoundaryListener,
                 factionEventListener,
                 // Reports which succession ladder is actually in force once the whole server is up,

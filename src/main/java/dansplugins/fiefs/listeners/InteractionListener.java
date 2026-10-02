@@ -6,6 +6,7 @@ import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.services.ChunkService;
+import dansplugins.fiefs.services.FiefInteractionPolicy;
 import dansplugins.fiefs.utils.Logger;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -37,15 +38,21 @@ public class InteractionListener implements Listener {
     private final PersistentData persistentData;
     private final Logger logger;
     private final Fiefs fiefs;
-    private final MedievalFactionsApi factions;
+    private final FiefInteractionPolicy interactionPolicy;
 
     public InteractionListener(ChunkService chunkService, PersistentData persistentData, Logger logger,
                                Fiefs fiefs, MedievalFactionsApi factions) {
+        this(chunkService, persistentData, logger, fiefs,
+                new FiefInteractionPolicy(chunkService, persistentData, factions, logger));
+    }
+
+    public InteractionListener(ChunkService chunkService, PersistentData persistentData, Logger logger,
+                               Fiefs fiefs, FiefInteractionPolicy interactionPolicy) {
         this.chunkService = chunkService;
         this.persistentData = persistentData;
         this.logger = logger;
         this.fiefs = fiefs;
-        this.factions = factions;
+        this.interactionPolicy = interactionPolicy;
     }
 
     @EventHandler()
@@ -253,45 +260,10 @@ public class InteractionListener implements Listener {
     }
 
     private boolean shouldEventBeCancelled(ClaimedChunk claimedChunk, Player player) {
-        if (claimedChunk == null) {
-            logger.log("Claimed chunk was null.");
-            return false;
-        }
-        if (embassyConflict(claimedChunk, player)) return true;
-        Fief chunkHolder = persistentData.getFief(claimedChunk.getFief());
-        Fief playersFief = persistentData.getFief(player);
-
-        if (chunkHolder == null) {
-            // A claim naming a fief that no longer exists. Deny and report rather than allowing:
-            // returning false here would silently open the protection bypass this method exists to
-            // close. Should be unreachable now that /fi rename re-points claims and disbanding
-            // unclaims them, so log it as a real inconsistency if it ever fires.
-            logger.log("Claim at " + claimedChunk.getWorld() + " " + claimedChunk.getX() + ","
-                    + claimedChunk.getZ() + " names unknown fief '" + claimedChunk.getFief() + "'.");
-            return true;
-        }
-
-        if (playersFief == null) {
-            return true;
-        }
-
-        boolean claimedLandProtected = (boolean) playersFief.getFlags().getFlag("claimedLandProtected");
-
-        if (!claimedLandProtected) {
-            return false;
-        }
-
-        return !chunkHolder.isSameFief(playersFief);
+        return interactionPolicy.denies(claimedChunk, player);
     }
 
-    /** A corrupt overlap is frozen for both realms, except a staff member with MF bypass. */
     private boolean embassyConflict(ClaimedChunk claim, Player player) {
-        if (!claim.getWorld().equals(player.getWorld().getName())) return true;
-        try {
-            return factions.isEmbassyReservedAt(player.getWorld().getUID(), claim.getX(), claim.getZ())
-                    && !player.hasPermission("mf.bypass");
-        } catch (RuntimeException | LinkageError unavailable) {
-            return true;
-        }
+        return interactionPolicy.embassyConflict(claim, player);
     }
 }

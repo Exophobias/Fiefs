@@ -5,6 +5,8 @@ import dansplugins.fiefs.objects.ClaimedChunk;
 import dansplugins.fiefs.objects.Fief;
 import dansplugins.fiefs.services.SuccessionService;
 import org.bukkit.entity.Player;
+import org.bukkit.Bukkit;
+import org.bukkit.block.Block;
 import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
@@ -35,6 +37,7 @@ public class FiefsAPI {
     private final SuccessionService successionService;
     private final dansplugins.fiefs.services.StorageService storage;
     private final BooleanSupplier claimLookupReady;
+    private final java.util.function.BiPredicate<Player, Block> blockInteraction;
 
     /**
      * Retains the original API constructor for consumers that only use fief lookups.
@@ -57,10 +60,30 @@ public class FiefsAPI {
     /** Provider wiring; legacy constructors do not assert that storage was successfully loaded. */
     public FiefsAPI(PersistentData persistentData, SuccessionService successionService,
                     dansplugins.fiefs.services.StorageService storage, BooleanSupplier claimLookupReady) {
+        this(persistentData, successionService, storage, claimLookupReady, (player, block) -> false);
+    }
+
+    /** Provider wiring. Legacy wrappers cannot authorize interactions. */
+    public FiefsAPI(PersistentData persistentData, SuccessionService successionService,
+                    dansplugins.fiefs.services.StorageService storage, BooleanSupplier claimLookupReady,
+                    java.util.function.BiPredicate<Player, Block> blockInteraction) {
         this.persistentData = persistentData;
         this.successionService = successionService;
         this.storage = storage;
         this.claimLookupReady = java.util.Objects.requireNonNull(claimLookupReady, "claimLookupReady");
+        this.blockInteraction = java.util.Objects.requireNonNull(blockInteraction, "blockInteraction");
+    }
+
+    /**
+     * Main-thread live native interaction policy. Includes the same fief membership, protection
+     * flag, orphan, and embassy-overlap decision as PlayerInteractEvent. Unknown provider/storage
+     * state refuses. No events, chat, persistence, mode changes, or world mutation.
+     */
+    public boolean canInteractWithBlock(Player player, Block block) {
+        if (player == null || block == null || !claimLookupReady.getAsBoolean() || !Bukkit.isPrimaryThread()) return false;
+        try {
+            return player.isOnline() && blockInteraction.test(player, block) && claimLookupReady.getAsBoolean();
+        } catch (RuntimeException | LinkageError unavailable) { return false; }
     }
 
     /**
