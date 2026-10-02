@@ -29,7 +29,9 @@ class FiefInteractionPolicyTest {
         var block = mock(Block.class); when(block.getWorld()).thenReturn(world); when(block.getChunk()).thenReturn(chunk);
         var player = mock(Player.class); UUID actor = UUID.randomUUID();
         when(player.getUniqueId()).thenReturn(actor); when(player.getWorld()).thenReturn(world); when(player.isOnline()).thenReturn(true);
-        var logger = new Logger(null);
+        var logger = new Logger(null) {
+            @Override public void log(String ignored) { }
+        };
         var home = new Fief(null, "home", actor, "realm", logger);
         var other = new Fief(null, "other", UUID.randomUUID(), "realm", logger);
         data.addFief(home); data.addFief(other);
