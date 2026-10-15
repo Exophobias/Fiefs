@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -222,5 +223,23 @@ class PersistentDataTest {
         persistentData.addChunk(newClaimedChunk("TESTOPIA"));
 
         assertEquals(1, persistentData.getNumChunksClaimedByFief(fief));
+    }
+
+    @Test
+    void renamingAFiefMovesItsClaimedChunksToTheNewName() {
+        PersistentData data = newPersistentData();
+        Fief north = newFief("North", "faction-1");
+        data.addFief(north);
+        ClaimedChunk held = newClaimedChunk("North");
+        ClaimedChunk other = newClaimedChunk("South");
+        data.addChunk(held);
+        data.addChunk(other);
+
+        data.renameFief(north, "Northern");
+
+        assertEquals("Northern", north.getName());
+        assertEquals("Northern", held.getFief());
+        assertEquals("South", other.getFief());
+        assertSame(north, data.getFief(held.getFief()));
     }
 }

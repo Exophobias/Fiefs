@@ -35,9 +35,14 @@ public final class FiefInteractionPolicy {
                     + " names unknown fief '" + claim.getFief() + "'.");
             return true;
         }
-        if (actor == null) return true;
-        boolean protectedLand = (boolean) actor.getFlags().getFlag("claimedLandProtected");
-        return protectedLand && !holder.isSameFief(actor);
+        return refuses(holder, actor);
+    }
+
+    /** The land holder owns its protection setting; visitors cannot turn it off. */
+    public static boolean refuses(Fief holder, Fief actor) {
+        if (holder == null) return true;
+        boolean protectedLand = (boolean) holder.getFlags().getFlag("claimedLandProtected");
+        return protectedLand && (actor == null || !holder.isSameFief(actor));
     }
 
     /** Corrupt fief/embassy overlap remains frozen except for the existing MF staff permission. */

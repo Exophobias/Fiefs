@@ -33,6 +33,21 @@ its name, land and members until the head of the faction grants it again with
 The head of the faction may also take a fief back with `/fi revoke "<fief>"`. That leaves the fief
 standing and only removes its holder; use `/fi disband` if the intent really is to destroy it.
 
+## Who Can Do What
+
+- Inviting players, kicking members, viewing and setting flags, renaming, transferring and disbanding a fief are for its owner only; another member is told so.
+- Any member of a fief can claim faction land for it, unclaim its land and change its description. Claiming needs land the faction has claimed that no fief holds yet; unclaiming works only on land the player's own fief holds.
+- A player in no fief cannot claim or unclaim land for a fief.
+- Fiefs adds no restriction of its own to faction land that no fief has claimed: there, only Medieval Factions' rules apply (its members can build and use blocks, subject to its locks, gates and other rules), whatever fief a player is in.
+
+## Fief Flags
+
+A fief's owner views and changes its flags with `/fi flags show` and `/fi flags set <flag> <value>`.
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `claimedLandProtected` | `true` | When `true`, only members of the fief can build, break blocks, open containers and doors, and use item frames and armour stands in the land the fief has claimed; other members of the faction, in another fief or in none, are refused. When `false`, the fief's land is open to every member of the faction (Medieval Factions' own protection still keeps other factions out). Only the flag of the fief that holds the land counts. |
+
 ## Permissions
 
 | Permission | Default | Description |

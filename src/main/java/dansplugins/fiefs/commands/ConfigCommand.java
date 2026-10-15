@@ -5,7 +5,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import dansplugins.fiefs.commands.abs.FiefsCommand;
-import dansplugins.fiefs.utils.ArgumentParser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,19 +42,7 @@ public class ConfigCommand extends FiefsCommand {
             }
             String option = args[1];
 
-            String value = "";
-            if (option.equalsIgnoreCase("denyUsageMessage") || option.equalsIgnoreCase("denyCreationMessage")) {
-                ArgumentParser argumentParser = new ArgumentParser();
-                ArrayList<String> singleQuoteArgs = new ArrayList<>(argumentParser.getArgumentsInsideDoubleQuotes(args));
-                if (singleQuoteArgs.size() == 0) {
-                    sender.sendMessage(Component.text("New message must be in between double quotes.", NamedTextColor.RED));
-                    return false;
-                }
-                value = singleQuoteArgs.get(0);
-            }
-            else {
-                value = args[2];
-            }
+            String value = args[2];
 
             configService.setConfigOption(option, value, sender);
             return true;

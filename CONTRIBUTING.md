@@ -93,9 +93,6 @@ EOF
   `src/main/resources/plugin.yml` and `CHANGELOG.md` are the sources of truth for commands,
   permission nodes, configuration options and user-visible changes respectively.
 
-These conventions follow
-[dms-conventions](https://github.com/dmccoystephenson/dms-conventions/blob/main/docs/COMMIT_PR_CONVENTIONS.md).
-
 ## Testing
 
     mvn clean package

@@ -31,14 +31,20 @@ public class InfoCommand extends FiefsCommand {
         this.successionService = successionService;
     }
 
+    /**
+     * {@code /fi info} with no argument. Ponder routes a bare subcommand here rather than to
+     * {@link #execute(CommandSender, String[])}, so this shows the sender's own fief, as the
+     * help text promises; it used to return {@code false} without a word (#207).
+     */
     @Override
     public boolean execute(CommandSender commandSender) {
-        return false;
+        return execute(commandSender, new String[0]);
     }
 
     public boolean execute(CommandSender sender, String[] args) {
 
         if (!(sender instanceof Player)) {
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 

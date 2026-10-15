@@ -39,6 +39,7 @@ public class InteractionListener implements Listener {
     private final Logger logger;
     private final Fiefs fiefs;
     private final FiefInteractionPolicy interactionPolicy;
+    private final RefusalNotifier refusalNotifier = new RefusalNotifier();
 
     public InteractionListener(ChunkService chunkService, PersistentData persistentData, Logger logger,
                                Fiefs fiefs, MedievalFactionsApi factions) {
@@ -65,17 +66,10 @@ public class InteractionListener implements Listener {
             return;
         }
 
-        Fief playersFief = persistentData.getFief(player);
-        if (playersFief == null) {
-            // Normal Fiefs behavior leaves this case to MF. A saved fief/embassy overlap is an
-            // inconsistency, so neither side may edit it while staff resolve the competing grants.
-            if (embassyConflict(claimedChunk, player)) event.setCancelled(true);
-            return;
-        }
-
         if (shouldEventBeCancelled(claimedChunk, player)) {
             logger.log("Cancelling Block Break event.");
             event.setCancelled(true);
+            refusalNotifier.notifyRefused(player, claimedChunk.getFief());
         }
     }
 
@@ -89,15 +83,10 @@ public class InteractionListener implements Listener {
             return;
         }
 
-        Fief playersFief = persistentData.getFief(player);
-        if (playersFief == null) {
-            if (embassyConflict(claimedChunk, player)) event.setCancelled(true);
-            return;
-        }
-
         if (shouldEventBeCancelled(claimedChunk, player)) {
             logger.log("Cancelling Block Place event.");
             event.setCancelled(true);
+            refusalNotifier.notifyRefused(player, claimedChunk.getFief());
         }
     }
 
@@ -119,6 +108,7 @@ public class InteractionListener implements Listener {
         if (shouldEventBeCancelled(claimedChunk, player)) {
             logger.log("Cancelling Player Interact event.");
             event.setCancelled(true);
+            refusalNotifier.notifyRefused(player, claimedChunk.getFief());
         }
     }
 
@@ -149,6 +139,7 @@ public class InteractionListener implements Listener {
 
             if (shouldEventBeCancelled(claimedChunk, player)) {
                 event.setCancelled(true);
+                refusalNotifier.notifyRefused(player, claimedChunk.getFief());
             }
         }
     }
@@ -168,6 +159,7 @@ public class InteractionListener implements Listener {
 
         if (shouldEventBeCancelled(claimedChunk, player)) {
             event.setCancelled(true);
+            refusalNotifier.notifyRefused(player, claimedChunk.getFief());
         }
     }
 
@@ -183,6 +175,7 @@ public class InteractionListener implements Listener {
 
         if (shouldEventBeCancelled(claimedChunk, player)) {
             event.setCancelled(true);
+            refusalNotifier.notifyRefused(player, claimedChunk.getFief());
         }
     }
 
@@ -198,6 +191,7 @@ public class InteractionListener implements Listener {
 
         if (shouldEventBeCancelled(claimedChunk, player)) {
             event.setCancelled(true);
+            refusalNotifier.notifyRefused(player, claimedChunk.getFief());
         }
     }
 
@@ -219,6 +213,7 @@ public class InteractionListener implements Listener {
 
             if (shouldEventBeCancelled(claimedChunk, player)) {
                 event.setCancelled(true);
+                refusalNotifier.notifyRefused(player, claimedChunk.getFief());
             }
         }
     }

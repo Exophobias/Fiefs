@@ -30,6 +30,10 @@ is intentionally omitted, with no new telemetry settings or operator schema chan
 
 This plugin depends on [Medieval Factions](https://github.com/Dans-Plugins/Medieval-Factions) in order to work.
 
+**Compatibility:** Fiefs v0.12.1 was enabled against [Medieval Factions](https://github.com/Dans-Plugins/Medieval-Factions) 7.0.0 by the [dependents gate](https://github.com/Dans-Plugins/release-gates/actions/runs/36957984824) before Medieval Factions 7.0.0 was published.
+
+**Other Medieval Factions expansions:** [Currencies](https://github.com/Dans-Plugins/Currencies) (faction currencies), [Democracy](https://github.com/Dans-Plugins/Democracy) (elections), [Bluemap_MedievalFactions](https://github.com/Dans-Plugins/Bluemap_MedievalFactions) (claims on a BlueMap web map). All of them are listed in the [Medieval Factions README](https://github.com/Dans-Plugins/Medieval-Factions#expansions).
+
 ## Usage
 
 ### Documentation

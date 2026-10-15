@@ -41,6 +41,8 @@ class FiefInteractionPolicyTest {
         data.removeChunk(claim); claim.setFief("other"); data.addChunk(claim);
         assertFalse(policy.canInteractWithBlock(player, block));
         home.getFlags().setFlag("claimedLandProtected", "false", player);
+        assertFalse(policy.canInteractWithBlock(player, block));
+        other.getFlags().setFlag("claimedLandProtected", "false", player);
         assertTrue(policy.canInteractWithBlock(player, block));
         when(factions.isEmbassyReservedAt(worldId, 0, 0)).thenReturn(true);
         assertFalse(policy.canInteractWithBlock(player, block));

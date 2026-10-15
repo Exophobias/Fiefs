@@ -5,6 +5,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -12,6 +13,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Test doubles for the handful of Bukkit interfaces the chunk-claim code touches.
@@ -35,6 +37,7 @@ public final class BukkitTestDoubles {
      */
     public static World world(String worldName) {
         return proxy(World.class, (method, args) -> {
+            if (method.getName().equals("getUID")) return UUID.nameUUIDFromBytes(worldName.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             if (method.getName().equals("getName")) {
                 return worldName;
             }
@@ -84,18 +87,60 @@ public final class BukkitTestDoubles {
     }
 
     /**
-     * A player standing in the given chunk, appending every message sent to it to
-     * {@code sentMessages}. Answers {@code sendMessage(String)} and {@code getLocation()},
-     * the latter returning a location whose {@code getChunk()} resolves to {@code chunk}.
+     * A player with the given UUID, appending every message sent to it to {@code sentMessages}.
+     * Answers {@code sendMessage(String)} and {@code getUniqueId()}, which is how fief membership
+     * is looked up.
      */
-    public static Player playerInChunk(Chunk chunk, List<String> sentMessages) {
-        World world = proxy(World.class, (method, args) -> {
+    public static Player playerWithId(UUID uuid, List<String> sentMessages) {
+        return proxy(Player.class, (method, args) -> {
+            if (method.getName().equals("sendMessage") && args != null && args.length == 1
+                    && args[0] instanceof String) {
+                sentMessages.add((String) args[0]);
+                return null;
+            }
+            if (method.getName().equals("getUniqueId")) {
+                return uuid;
+            }
+            throw unsupported(method);
+        });
+    }
+
+    /**
+     * A world in which every location resolves to the given chunk. Answers
+     * {@code getChunkAt(Location)} only, which is what {@code Location.getChunk()} calls.
+     *
+     * <p>A {@link Location} holds its world through a weak reference, so a caller building
+     * locations in this world must keep its own strong reference to it for as long as those
+     * locations are used; otherwise {@code getChunk()} can fail intermittently with
+     * "World unloaded".
+     */
+    public static World worldContaining(Chunk chunk) {
+        return proxy(World.class, (method, args) -> {
             if (method.getName().equals("getChunkAt") && args != null && args.length == 1
                     && args[0] instanceof Location) {
                 return chunk;
             }
             throw unsupported(method);
         });
+    }
+
+    /** A block in the given chunk. Answers {@code getChunk()} only. */
+    public static Block blockIn(Chunk chunk) {
+        return proxy(Block.class, (method, args) -> {
+            if (method.getName().equals("getChunk")) {
+                return chunk;
+            }
+            throw unsupported(method);
+        });
+    }
+
+    /**
+     * A player standing in the given chunk, appending every message sent to it to
+     * {@code sentMessages}. Answers {@code sendMessage(String)} and {@code getLocation()},
+     * the latter returning a location whose {@code getChunk()} resolves to {@code chunk}.
+     */
+    public static Player playerInChunk(Chunk chunk, List<String> sentMessages) {
+        World world = worldContaining(chunk);
 
         Location location = new Location(world, 0, 64, 0);
 

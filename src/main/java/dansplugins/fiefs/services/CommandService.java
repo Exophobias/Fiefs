@@ -46,12 +46,13 @@ public class CommandService {
 
     public boolean interpretAndExecuteCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            return false;
+            return new dansplugins.fiefs.commands.HelpCommand().execute(sender);
         }
 
         FiefsCommand command = commandsByName.get(args[0].toLowerCase(Locale.ROOT));
         if (command == null) {
             sender.sendMessage(Component.text(notFoundMessage, NamedTextColor.RED));
+            new dansplugins.fiefs.commands.HelpCommand().execute(sender);
             return false;
         }
 
@@ -64,6 +65,17 @@ public class CommandService {
         return remainingArgs.length == 0
                 ? command.execute(sender)
                 : command.execute(sender, remainingArgs);
+    }
+
+    public List<String> complete(CommandSender sender, String[] args) {
+        String prefix = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
+        if (args.length <= 1) return commandsByName.entrySet().stream()
+            .filter(e -> e.getValue().getPermissions().stream().anyMatch(sender::hasPermission))
+            .map(Map.Entry::getKey).filter(name -> name.startsWith(prefix)).sorted().toList();
+        if (args.length == 2 && args[0].equalsIgnoreCase("help") && sender.hasPermission("fiefs.help")
+                && new dansplugins.fiefs.commands.HelpCommand().hasStaff(sender) && "staff".startsWith(prefix))
+            return List.of("staff");
+        return List.of();
     }
 
     private boolean hasAnyPermission(CommandSender sender, FiefsCommand command) {

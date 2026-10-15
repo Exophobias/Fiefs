@@ -257,6 +257,21 @@ public class PersistentData {
         fiefs.clear();
     }
 
+    /**
+     * Renames a fief together with the land it holds. Claimed chunks name their holder, so renaming
+     * only the fief would leave its land pointing at a fief that no longer exists (unprotected, and
+     * inherited by any fief that later takes the old name).
+     */
+    public void renameFief(Fief fief, String newName) {
+        String oldName = fief.getName();
+        for (ClaimedChunk chunk : claimedChunks) {
+            if (chunk.getFief().equalsIgnoreCase(oldName)) {
+                chunk.setFief(newName);
+            }
+        }
+        fief.setName(newName);
+    }
+
     public void clearClaimedChunks() {
         synchronized (claimMutationLock) {
             claimLookupUpdating = true;

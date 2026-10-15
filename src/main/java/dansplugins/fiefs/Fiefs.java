@@ -191,15 +191,12 @@ public class Fiefs extends JavaPlugin {
      */
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        // Bare /fi is handled here rather than routed through the dispatcher, deliberately. Bukkit has
-        // already checked the sender against the `fiefs` command's own permission by this point, and
-        // going through the dispatcher would additionally demand fiefs.default.
-        if (args.length == 0) {
-            DefaultCommand defaultCommand = new DefaultCommand(this);
-            return defaultCommand.execute(sender);
-        }
-
         return commandService.interpretAndExecuteCommand(sender, args);
+    }
+
+    @Override
+    public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        return commandService.complete(sender, args);
     }
 
     /**

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- Reconcile upstream through `ed491c3` while retaining Patriam stable APIs, schema 1 and no usage reporting.
+- Use the land holder's protection flag and refuse unaffiliated visitors consistently for break/place.
+- Permission-filter command help and completion, with eight entries per page and separate staff help.
+
 ### Upstream integration — 2026-09-28
 
 - Integrated Dans-Plugins/Fiefs through `a4def94` (upstream source `0.12.1-SNAPSHOT`).
@@ -65,7 +69,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   logged at every startup so somebody fixes it
 
 ### Fixed
+- Breaking or placing a block on protected fief land is now refused by the break and place handlers themselves for a player in no fief, whether or not they are in the faction. Before, those handlers let such a player through and the refusal came only from the interact handler cancelling the click that usually precedes a break or place; a break or place raised without that click (by another plugin, or a future Minecraft version) would have gone through. What players see does not change (#211).
+- Renaming a fief keeps its land. Claimed chunks name the fief that holds them, and `/fi rename` renamed only the fief, so its land was left pointing at a fief that no longer existed: unprotected, and inherited by any fief that later took the old name. The chunks are now renamed with the fief.
+- A fief's `claimedLandProtected` flag now protects that fief's own land. It was read from the fief of the player acting, so a fief that turned its flag off let its members into every other fief's land in the faction, and a fief that turned its own flag off still kept others out. The flag is now taken from the fief that holds the chunk. (GHSA-qhmm-cc6j-295j)
 
+- When fief protection refuses an action — breaking or placing a block, opening a container, using a door or button, emptying or filling a bucket, using an item frame or armour stand, or breaking a painting or item frame — the player is now told: `This land belongs to the fief <name>. Only its members may do that here.` Before, the action simply did not happen and nothing said why (#209). The message is sent at most once every two seconds per player, so a held mouse button or a pressure plate does not flood chat. A player who is also refused by Medieval Factions (for example an enemy faction's member) now sees both messages.
+
+- `/fi info` with no argument now shows your own fief, as the help text says. Ponder sends a bare `/fi info` to the command's sender-only `execute`, which returned `false` without a word, so the command printed nothing for owners and members alike (#207). It now takes the same path as `/fi info` given no fief name. Run from the console, `/fi info` now says "Only players can use this command." instead of also printing nothing.
+- The plugin failed to load on any server that had Medieval Factions installed: the Medieval Factions lookup ran while the main class was still being constructed, and the debug line it logged on finding the plugin read the config through a config service that did not exist yet, throwing a `NullPointerException` out of the main class's constructor. Spigot reported `Could not load 'plugins/Fiefs-0.12.0.jar'` and the plugin was never enabled. The lookup now runs from `onEnable()`, after the config has been read
 - The `Dev Release` workflow now retries publishing the `dev` prerelease before giving up. The release and its tag have to be deleted and recreated for the tag to move to the new commit, and a transient API failure inside that window previously left the repository with no `dev` release at all until the workflow was re-run by hand. Each attempt now starts from a clean slate, and an exhausted retry fails loudly.
 - A fief's capital is cleared when Medieval-Factions unclaims that chunk, instead of pointing at land
   the fief no longer holds
