@@ -47,6 +47,8 @@ public class HelpCommand extends FiefsCommand {
     @Override public boolean execute(CommandSender sender, String[] args) {
         List<Entry> ordinary = ENTRIES.stream().filter(e -> !e.staff && sender.hasPermission(e.permission)).toList();
         List<Entry> staff = ENTRIES.stream().filter(e -> e.staff && sender.hasPermission(e.permission)).toList();
+        if (!staff.isEmpty() && ordinary.stream().allMatch(e -> e.permission.equals("fiefs.help")))
+            ordinary = List.of();
         int ordinaryPages = pages(ordinary.size()), staffPages = pages(staff.size());
         int total = ordinaryPages + staffPages;
         boolean directStaff = args.length > 0 && args[0].equalsIgnoreCase("staff");

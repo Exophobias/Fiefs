@@ -33,7 +33,7 @@ class HelpCommandTest {
         assertEquals(List.of("You do not have permission."), messages);
     }
     @Test void partialStaffHaveSeparatePageAndNoEmptyOrdinaryPage() {
-        var help = new HelpCommand(); var both = sender(Set.of("fiefs.help", "fiefs.config"));
+        var help = new HelpCommand(); var both = sender(Set.of("fiefs.help", "fiefs.info", "fiefs.config"));
         help.execute(both); assertTrue(contains("Fiefs (1/2)")); assertFalse(contains("config <"));
         messages.clear(); help.execute(both, new String[]{"2"});
         assertTrue(contains("Fiefs Staff (2/2)")); assertTrue(contains("config <")); assertFalse(contains("/fi help ["));
