@@ -31,7 +31,7 @@ public class MoveListener implements Listener {
         // PlayerMoveEvent fires for every mouse movement, not just for walking. Nothing below this
         // line can change its answer unless the player actually left a block, so this single check
         // removes the overwhelming majority of invocations before any lookup happens.
-        if (!event.hasChangedBlock()) {
+        if (event.getTo() == null || !event.hasChangedBlock()) {
             return;
         }
 

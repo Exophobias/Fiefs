@@ -27,7 +27,8 @@ public final class FiefInteractionPolicy {
 
     public boolean denies(ClaimedChunk claim, Player player) {
         if (claim == null) return false;
-        if (embassyConflict(claim, player)) return true;
+        Boolean embassyDecision = embassyDecision(claim, player);
+        if (embassyDecision != null) return embassyDecision;
         Fief holder = data.getFief(claim.getFief());
         Fief actor = data.getFief(player);
         if (holder == null) {
@@ -47,10 +48,15 @@ public final class FiefInteractionPolicy {
 
     /** Corrupt fief/embassy overlap remains frozen except for the existing MF staff permission. */
     public boolean embassyConflict(ClaimedChunk claim, Player player) {
+        return Boolean.TRUE.equals(embassyDecision(claim, player));
+    }
+
+    /** null means ordinary fief policy; a reserved parcel has one authoritative staff decision. */
+    private Boolean embassyDecision(ClaimedChunk claim, Player player) {
         if (!claim.getWorld().equals(player.getWorld().getName())) return true;
         try {
             return factions.isEmbassyReservedAt(player.getWorld().getUID(), claim.getX(), claim.getZ())
-                    && !player.hasPermission("mf.bypass");
+                    ? !player.hasPermission("mf.bypass") : null;
         } catch (RuntimeException | LinkageError unavailable) { return true; }
     }
 }
