@@ -38,7 +38,7 @@ class BlockProtectionTest {
 
     private final PersistentData persistentData = new PersistentData(null);
     private final InteractionListener listener =
-            new InteractionListener(new ChunkService(persistentData, null), persistentData, NULL_LOGGER, null, mock(MedievalFactionsApi.class));
+            new InteractionListener(new ChunkService(persistentData, null, null), persistentData, NULL_LOGGER, null, mock(MedievalFactionsApi.class));
     private final Chunk fiefLand = BukkitTestDoubles.chunk("world", 3, 4);
     private final Fief north = new Fief(null, "North", UUID.randomUUID(), "faction-1", NULL_LOGGER);
 

@@ -44,7 +44,7 @@ class MoveListenerTest {
     };
 
     private final MoveListener listener =
-            new MoveListener(configService, new ChunkService(persistentData, null), null);
+            new MoveListener(configService, new ChunkService(persistentData, null, null), null);
 
     private final Chunk wilderness = BukkitTestDoubles.chunk("world", 0, 0);
     private final Chunk northLand = BukkitTestDoubles.chunk("world", 1, 0);
