@@ -65,7 +65,7 @@ class MoveListenerTest {
     private Location locationIn(Chunk chunk) {
         World world = BukkitTestDoubles.worldContaining(chunk);
         worlds.add(world);
-        return new Location(world, 0, 64, 0);
+        return new Location(world, chunk.getX() << 4, 64, chunk.getZ() << 4);
     }
 
     private PlayerMoveEvent move(Chunk from, Chunk to) {
@@ -83,7 +83,7 @@ class MoveListenerTest {
         listener.handle(move(wilderness, northLand));
 
         assertEquals(1, messages.size());
-        assertEquals(ChatColor.GREEN + "Entering North", messages.get(0));
+        assertEquals("Entering North", messages.get(0));
     }
 
     @Test
@@ -91,7 +91,7 @@ class MoveListenerTest {
         listener.handle(move(northLand, southLand));
 
         assertEquals(1, messages.size());
-        assertEquals(ChatColor.AQUA + "Entering South", messages.get(0));
+        assertEquals("Entering South", messages.get(0));
     }
 
     @Test

@@ -127,6 +127,10 @@ public final class BukkitTestDoubles {
     /** A block in the given chunk. Answers {@code getChunk()} only. */
     public static Block blockIn(Chunk chunk) {
         return proxy(Block.class, (method, args) -> {
+            if (method.getName().equals("getX")) return chunk.getX() << 4;
+            if (method.getName().equals("getZ")) return chunk.getZ() << 4;
+            if (method.getName().equals("getY")) return 64;
+            if (method.getName().equals("getWorld")) return chunk.getWorld();
             if (method.getName().equals("getChunk")) {
                 return chunk;
             }
