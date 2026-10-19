@@ -9,7 +9,7 @@ depend: [MedievalFactions]
 # plugin see another plugin's classes when a relationship between them is declared, and softdepend also
 # enables PatriamHeraldry before Fiefs so its api is loadable when the bridge registers. Every class
 # that touches those types is guarded; see dansplugins.fiefs.heraldry.HeraldryPresence.
-softdepend: [PatriamHeraldry]
+softdepend: [PatriamHeraldry, PatriamWelcome]
 
 commands:
   fiefs:

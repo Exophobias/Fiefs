@@ -9,7 +9,7 @@ import java.util.List;
 
 /** Permission-filtered player and staff help, with independent eight-entry sections. */
 public class HelpCommand extends FiefsCommand {
-    private record Entry(String command, String description, String permission, boolean staff) { }
+    public record Entry(String command, String description, String permission, boolean staff) { }
     private static final List<Entry> ENTRIES = List.of(
         row("help [page]", "Read command help.", "help"),
         row("list", "List your faction's fiefs.", "list"),
@@ -39,14 +39,18 @@ public class HelpCommand extends FiefsCommand {
     private static Entry row(String command, String description, String permission) {
         return new Entry(command, description, "fiefs." + permission, false);
     }
+    /** Same current permission policy as chat; the owner keeps staff classification. */
+    public static List<Entry> permitted(CommandSender sender) {
+        return ENTRIES.stream().filter(e -> sender.hasPermission(e.permission())).toList();
+    }
     public HelpCommand() { super(List.of("help"), List.of("fiefs.help")); }
     @Override public boolean execute(CommandSender sender) { return execute(sender, new String[0]); }
     public boolean hasStaff(CommandSender sender) {
         return ENTRIES.stream().anyMatch(e -> e.staff && sender.hasPermission(e.permission));
     }
     @Override public boolean execute(CommandSender sender, String[] args) {
-        List<Entry> ordinary = ENTRIES.stream().filter(e -> !e.staff && sender.hasPermission(e.permission)).toList();
-        List<Entry> staff = ENTRIES.stream().filter(e -> e.staff && sender.hasPermission(e.permission)).toList();
+        List<Entry> ordinary = permitted(sender).stream().filter(e -> !e.staff).toList();
+        List<Entry> staff = permitted(sender).stream().filter(e -> e.staff).toList();
         if (!staff.isEmpty() && ordinary.stream().allMatch(e -> e.permission.equals("fiefs.help")))
             ordinary = List.of();
         int ordinaryPages = pages(ordinary.size()), staffPages = pages(staff.size());

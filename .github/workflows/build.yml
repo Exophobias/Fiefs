@@ -98,6 +98,14 @@ jobs:
           key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: maven-${{ runner.os }}-
 
+      - name: Verify and install the thin optional Welcome API
+        working-directory: libs
+        run: |
+          sha256sum -c CHECKSUMS
+          mvn -B --no-transfer-progress install:install-file \
+            -Dfile=welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.jar \
+            -DpomFile=welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.pom
+
       # ORDER IS LOAD-BEARING: must come after the cache restore. Restoring untars over ~/.m2, so
       # publishing first would let a stale cached jar overwrite the fresh fork, and the build would
       # compile against an old API while the publish step still reported success.

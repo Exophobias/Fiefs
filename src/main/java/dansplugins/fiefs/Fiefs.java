@@ -88,6 +88,7 @@ public class Fiefs extends JavaPlugin {
      * overwrite fiefs.json and claimedChunks.json with {@code []}.
      */
     private boolean loaded = false;
+    private AutoCloseable welcomeFeature = () -> { };
     private volatile boolean claimLookupReady = false;
     private volatile ConfigMigrator.Result configMigrationResult;
 
@@ -142,6 +143,7 @@ public class Fiefs extends JavaPlugin {
         // named from here. See HeraldryPresence.
         HeraldryPresence.register(this, persistentData, medievalFactionsIntegrator);
         claimLookupReady = true;
+        welcomeFeature = dansplugins.fiefs.welcome.WelcomeFeatureIntegration.start(this);
     }
 
     /**
@@ -149,6 +151,7 @@ public class Fiefs extends JavaPlugin {
      */
     @Override
     public void onDisable() {
+        dansplugins.fiefs.welcome.WelcomeFeatureIntegration.close(this, welcomeFeature);
         claimLookupReady = false;
         persistentData.setHolderChangeObserver(ignored -> { });
         // Never save state we never loaded — that writes [] over the real save files. See #loaded.
@@ -263,6 +266,17 @@ public class Fiefs extends JavaPlugin {
         // One pointer publishes the exact post-write snapshot and its matching CAS baseline.
         configGeneration = new ConfigGeneration(attempt.prepared().configuration(), attempt);
         return true;
+    }
+
+    public boolean featureReady() { return isEnabled() && loaded && claimLookupReady; }
+
+    /** Current self-only read, using the same realm prerequisite as /fi info, without chat. */
+    public dansplugins.fiefs.objects.Fief currentFeatureFief(org.bukkit.entity.Player player) {
+        if (!featureReady() || !org.bukkit.Bukkit.isPrimaryThread()) return null;
+        var faction = medievalFactionsIntegrator.getAPI().getFactionByPlayer(player.getUniqueId());
+        var fief = persistentData.getFief(player.getUniqueId());
+        return faction != null && fief != null && fief.isMember(player.getUniqueId())
+                && faction.getId().getValue().equals(fief.getFactionId()) ? fief : null;
     }
 
     public FiefsAPI getAPI() {
