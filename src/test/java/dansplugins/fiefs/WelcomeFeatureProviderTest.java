@@ -28,18 +28,37 @@ class WelcomeFeatureProviderTest {
         api.createFaction("realm-1", "Realm", player.getUniqueId());
         api.setPower(player.getUniqueId(), 12);
         Fiefs plugin = MockBukkit.load(Fiefs.class);
-        assertTrue(player.performCommand("fi create Mill"));
+        assertFalse(player.isOp());
+        assertTrue(player.hasPermission("fiefs.create"));
+        assertTrue(player.hasPermission("fiefs.info"));
+        assertTrue(player.performCommand("fi create \"Mill\""));
+        var holding = plugin.getPersistentData().getFief(player.getUniqueId());
+        assertNotNull(holding);
+        assertTrue(holding.isOwner(player.getUniqueId()));
+        assertTrue(holding.isMember(player.getUniqueId()));
         var provider = new WelcomeFeatureProvider(plugin);
         View current = new View(); provider.open(player, current);
         assertNotNull(current.feature);
         assertTrue(current.feature.rows().stream().anyMatch(row -> row.label().equals("Holding") && row.value().equals("Mill")));
         assertTrue(current.feature.rows().stream().anyMatch(row -> row.label().equals("Land allowance") && row.value().equals("12")));
         assertTrue(current.feature.help().stream().noneMatch(entry -> entry.staff()));
-        player.addAttachment(plugin, "fiefs.info", false);
+        api.setPower(player.getUniqueId(), 19);
+        View refreshed = new View(); provider.open(player, refreshed);
+        assertNotNull(refreshed.feature);
+        assertTrue(refreshed.feature.rows().stream().anyMatch(row -> row.label().equals("Land allowance") && row.value().equals("19")));
+        var readPermission = player.addAttachment(plugin, "fiefs.info", false);
         View revoked = new View(); provider.open(player, revoked);
         assertNotNull(revoked.feature);
         assertFalse(revoked.feature.rows().stream().anyMatch(row -> row.value().equals("Mill")));
         assertFalse(revoked.feature.actions().stream().anyMatch(action -> action.command().equals("fi info")));
         assertFalse(revoked.feature.help().stream().anyMatch(entry -> entry.permission().equals("fiefs.info")));
+        readPermission.setPermission("fiefs.info", true);
+        api.removeFactionMember("realm-1", player.getUniqueId());
+        View departed = new View(); provider.open(player, departed);
+        assertNotNull(departed.feature);
+        assertFalse(departed.feature.rows().stream().anyMatch(row -> row.value().equals("Mill")));
+        assertFalse(departed.feature.actions().stream().anyMatch(action -> action.command().equals("fi info")));
+        assertSame(holding, plugin.getPersistentData().getFief(player.getUniqueId()),
+                "reading after a realm departure must not mutate the retained owner state");
     }
 }
