@@ -36,7 +36,7 @@ import java.util.function.BiFunction;
  * declared permissions, and is told which ones would have worked if they have none.
  */
 public class CommandService {
-    private static final Set<String> PROTECTED_VERBS = Set.of("revoke", "kick", "disband", "transfer");
+    private static final Set<String> PROTECTED_VERBS = Set.of("revoke", "kick", "disband", "transfer", "grant");
     private final BiFunction<UUID, String, String> governance;
     private final Map<String, FiefsCommand> commandsByName = new HashMap<>();
     private String notFoundMessage = "That command wasn't found.";

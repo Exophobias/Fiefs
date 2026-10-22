@@ -42,7 +42,7 @@ class CommandGovernanceGuardTest {
     }
 
     @Test void allDispossessionVerbsAndTheirAliasesReachAuthorityBeforeEitherExecutionOverload() {
-        for (String verb : List.of("revoke", "kick", "disband", "transfer")) {
+        for (String verb : List.of("revoke", "kick", "disband", "transfer", "grant")) {
             List<String> messages = new ArrayList<>(), checks = new ArrayList<>();
             Player actor = actor(messages);
             FiefsCommand target = command(verb, "alternate");
@@ -69,14 +69,14 @@ class CommandGovernanceGuardTest {
 
     @Test void unavailableOrIncompatibleAuthorityFailsClosedBeforeMutation() {
         for (boolean linkage : List.of(false, true)) {
-            FiefsCommand target = command("disband");
+            FiefsCommand target = command("grant");
             CommandService dispatch = new CommandService((id, verb) -> {
                 if (linkage) throw new AbstractMethodError("old provider");
                 throw new IllegalStateException("unavailable provider");
             });
             dispatch.initialize(List.of(target), "Unknown.");
             List<String> messages = new ArrayList<>();
-            assertTrue(dispatch.interpretAndExecuteCommand(actor(messages), new String[]{"disband"}));
+            assertTrue(dispatch.interpretAndExecuteCommand(actor(messages), new String[]{"grant"}));
             assertTrue(messages.getFirst().contains("temporarily unavailable"));
             verify(target, never()).execute(any());
         }
