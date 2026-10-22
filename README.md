@@ -141,6 +141,6 @@ You can view the bStats page for the plugin [here](https://bstats.org/plugin/buk
 
 ### Optional Patriam feature page
 
-With PatriamWelcome 2.1.0, **Holdings** shows current owner status and the same permission-filtered command help used in chat, with separate staff pages. Only your current fief in your current realm is projected, including holder/member status, claimed chunks and the native land allowance. No foreign roster or loaded chunk lookup is added.
+With PatriamWelcome 2.1.1, **Holdings** shows current owner status and the same permission-filtered command help used in chat, with separate staff pages. Only your current fief in your current realm is projected, including holder/member status, claimed chunks and the native land allowance. No foreign roster or loaded chunk lookup is added.
 
 Welcome remains optional: only the guarded adapter links its API, and its service is withdrawn before owner shutdown. Each navigation and action requests current authority again. Parameterized help is documentation; fixed actions retain the owner command’s execution checks. No configuration or gameplay storage schema changes.

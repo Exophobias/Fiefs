@@ -103,8 +103,8 @@ jobs:
         run: |
           sha256sum -c CHECKSUMS
           mvn -B --no-transfer-progress install:install-file \
-            -Dfile=welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.jar \
-            -DpomFile=welcome-api/com/github/exophobias/patriamwelcome/2.1.0/patriamwelcome-2.1.0.pom
+            -Dfile=welcome-api/com/github/exophobias/patriamwelcome/2.1.1/patriamwelcome-2.1.1.jar \
+            -DpomFile=welcome-api/com/github/exophobias/patriamwelcome/2.1.1/patriamwelcome-2.1.1.pom
 
       # ORDER IS LOAD-BEARING: must come after the cache restore. Restoring untars over ~/.m2, so
       # publishing first would let a stale cached jar overwrite the fresh fork, and the build would
