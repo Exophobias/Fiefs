@@ -70,6 +70,25 @@ class FiefCommandTest {
         return fiefs.getPersistentData().getFief(name);
     }
 
+    @Test
+    void centralGovernanceRefusalProtectsAllDestructiveVerbsAndNamespacedDispatch() {
+        owner.performCommand("fi create \"Ashford Mill\"");
+        Fief existing = fiefNamed("Ashford Mill");
+        assertNotNull(existing);
+        api.governanceRefusal = "Rally freeze is active.";
+        for (String verb : java.util.List.of("revoke", "kick", "disband", "transfer")) {
+            api.governanceChecks.clear();
+            assertTrue(owner.performCommand("fi " + verb + " target"));
+            assertEquals(java.util.List.of(owner.getUniqueId() + ":fief." + verb), api.governanceChecks);
+            assertEquals(existing, fiefNamed("Ashford Mill"));
+            assertEquals(owner.getUniqueId(), existing.getOwnerUUID());
+        }
+        api.governanceChecks.clear();
+        assertTrue(owner.performCommand("fiefs:fi transfer target"));
+        assertEquals(java.util.List.of(owner.getUniqueId() + ":fief.transfer"), api.governanceChecks);
+        assertEquals(owner.getUniqueId(), existing.getOwnerUUID());
+    }
+
     // --- creation ---
 
     @Test

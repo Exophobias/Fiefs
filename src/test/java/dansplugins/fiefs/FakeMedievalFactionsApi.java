@@ -50,6 +50,15 @@ public class FakeMedievalFactionsApi implements MedievalFactionsApi {
     private final Map<UUID, Double> powerByPlayer = new HashMap<>();
     private final Map<String, String> flagsByFactionAndName = new HashMap<>();
 
+    String governanceRefusal;
+    final List<String> governanceChecks = new ArrayList<>();
+
+    @Override
+    public @Nullable String governanceCommandRefusal(@NotNull UUID actor, @NotNull String verb) {
+        governanceChecks.add(actor + ":" + verb);
+        return governanceRefusal;
+    }
+
     // --- test setup helpers ---
 
     /**

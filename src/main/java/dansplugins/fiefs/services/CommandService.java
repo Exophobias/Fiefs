@@ -4,12 +4,17 @@ import dansplugins.fiefs.commands.abs.FiefsCommand;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.BiFunction;
 
 /**
  * Dispatches {@code /fi &lt;subcommand&gt; [args...]} to the matching {@link FiefsCommand}.
@@ -31,8 +36,18 @@ import java.util.Map;
  * declared permissions, and is told which ones would have worked if they have none.
  */
 public class CommandService {
+    private static final Set<String> PROTECTED_VERBS = Set.of("revoke", "kick", "disband", "transfer");
+    private final BiFunction<UUID, String, String> governance;
     private final Map<String, FiefsCommand> commandsByName = new HashMap<>();
     private String notFoundMessage = "That command wasn't found.";
+
+    public CommandService() {
+        this((actor, verb) -> null);
+    }
+
+    public CommandService(BiFunction<UUID, String, String> governance) {
+        this.governance = Objects.requireNonNull(governance, "governance");
+    }
 
     public void initialize(List<FiefsCommand> commands, String notFoundMessage) {
         this.notFoundMessage = notFoundMessage;
@@ -58,6 +73,22 @@ public class CommandService {
 
         if (!hasAnyPermission(sender, command)) {
             return false;
+        }
+
+        // Check the resolved command's canonical verb, so aliases and namespaced routes cannot
+        // evade the same rally freeze that protects faction membership and offices.
+        String canonical = command.getNames().getFirst().toLowerCase(Locale.ROOT);
+        if (sender instanceof Player player && PROTECTED_VERBS.contains(canonical)) {
+            String refusal;
+            try {
+                refusal = governance.apply(player.getUniqueId(), "fief." + canonical);
+            } catch (RuntimeException | LinkageError unavailable) {
+                refusal = "Faction governance is temporarily unavailable; ask staff to check PatriamMFAddon.";
+            }
+            if (refusal != null) {
+                sender.sendMessage(Component.text(refusal, NamedTextColor.RED));
+                return true;
+            }
         }
 
         // The subcommand sees only its own arguments, never its own name.

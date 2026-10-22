@@ -56,7 +56,7 @@ public class Fiefs extends JavaPlugin {
     private final YamlConfiguration bootstrapConfiguration = new YamlConfiguration();
     private volatile ConfigGeneration configGeneration;
 
-    private final CommandService commandService = new CommandService();
+    private final CommandService commandService = new CommandService(this::governanceCommandRefusal);
     private final Logger logger = new Logger(this);
     // configService MUST be initialized before medievalFactionsIntegrator. Field initializers run in
     // declaration order, and the integrator's constructor logs -> Logger.log -> Fiefs.isDebugEnabled()
@@ -192,6 +192,12 @@ public class Fiefs extends JavaPlugin {
      * @param args Arguments of the core command. Often sub-commands.
      * @return A boolean indicating whether the execution of the command was successful.
      */
+    private String governanceCommandRefusal(java.util.UUID actor, String canonicalVerb) {
+        var api = medievalFactionsIntegrator.getAPI();
+        return api == null ? "Faction governance is temporarily unavailable."
+                : api.governanceCommandRefusal(actor, canonicalVerb);
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         return commandService.interpretAndExecuteCommand(sender, args);
