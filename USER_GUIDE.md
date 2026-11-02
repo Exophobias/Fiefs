@@ -36,7 +36,7 @@ standing and only removes its holder; use `/fi disband` if the intent really is 
 ## Who Can Do What
 
 - Inviting players, kicking members, viewing and setting flags, renaming, transferring and disbanding a fief are for its owner only; another member is told so.
-- Any member of a fief can claim faction land for it, unclaim its land and change its description. Claiming needs land the faction has claimed that no fief holds yet; unclaiming works only on land the player's own fief holds.
+- Any member of a fief can claim faction land for it, unclaim its land and change its description. Claiming needs land the faction has claimed that no fief holds yet, and a fief can hold at most as many chunks as its members' combined Medieval Factions power, rounded to the nearest whole number (its demesne limit, shown as "Demesne Size" in `/fi info`); unclaiming works only on land the player's own fief holds.
 - A player in no fief cannot claim or unclaim land for a fief.
 - Fiefs adds no restriction of its own to faction land that no fief has claimed: there, only Medieval Factions' rules apply (its members can build and use blocks, subject to its locks, gates and other rules), whatever fief a player is in.
 

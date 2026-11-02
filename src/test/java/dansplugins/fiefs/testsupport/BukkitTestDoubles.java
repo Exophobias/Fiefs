@@ -93,13 +93,31 @@ public final class BukkitTestDoubles {
      */
     public static Player playerWithId(UUID uuid, List<String> sentMessages) {
         return proxy(Player.class, (method, args) -> {
-            if (method.getName().equals("sendMessage") && args != null && args.length == 1
-                    && args[0] instanceof String) {
-                sentMessages.add((String) args[0]);
+            if (method.getName().equals("sendMessage") && captureMessage(args, sentMessages)) {
                 return null;
             }
             if (method.getName().equals("getUniqueId")) {
                 return uuid;
+            }
+            throw unsupported(method);
+        });
+    }
+
+    /**
+     * A player with the given UUID and name, appending every message sent to it to
+     * {@code sentMessages}. Answers {@code sendMessage(String)}, {@code getUniqueId()} and
+     * {@code getName()}, for the commands that compare a typed name against the sender's own.
+     */
+    public static Player namedPlayer(UUID uuid, String name, List<String> sentMessages) {
+        return proxy(Player.class, (method, args) -> {
+            if (method.getName().equals("sendMessage") && captureMessage(args, sentMessages)) {
+                return null;
+            }
+            if (method.getName().equals("getUniqueId")) {
+                return uuid;
+            }
+            if (method.getName().equals("getName")) {
+                return name;
             }
             throw unsupported(method);
         });
@@ -159,6 +177,35 @@ public final class BukkitTestDoubles {
             // holds its world through a weak reference, and this handler is the only strong
             // reference to it once the factory returns. Without it a collected world turns
             // getLocation().getChunk() into an intermittent "World unloaded" failure.
+            if (method.getName().equals("getWorld") && (args == null || args.length == 0)) {
+                return world;
+            }
+            throw unsupported(method);
+        });
+    }
+
+    /**
+     * A player with the given UUID standing in the given chunk, appending every message sent to
+     * it to {@code sentMessages}. Answers what {@link #playerInChunk} answers plus
+     * {@code getUniqueId()}, for the commands that look up the sender's fief before reading
+     * where they stand.
+     */
+    public static Player playerWithIdInChunk(UUID uuid, Chunk chunk, List<String> sentMessages) {
+        World world = worldContaining(chunk);
+
+        Location location = new Location(world, 0, 64, 0);
+
+        return proxy(Player.class, (method, args) -> {
+            if (method.getName().equals("sendMessage") && captureMessage(args, sentMessages)) {
+                return null;
+            }
+            if (method.getName().equals("getUniqueId")) {
+                return uuid;
+            }
+            if (method.getName().equals("getLocation") && (args == null || args.length == 0)) {
+                return location;
+            }
+            // Keeps the world strongly reachable; see playerInChunk.
             if (method.getName().equals("getWorld") && (args == null || args.length == 0)) {
                 return world;
             }

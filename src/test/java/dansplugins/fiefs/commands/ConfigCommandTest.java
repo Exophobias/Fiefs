@@ -35,11 +35,13 @@ class ConfigCommandTest {
     }
 
     @Test
-    void execute_senderOnlyOverload_failsWithoutSendingAnything() {
+    void execute_senderOnlyOverload_listsTheSubCommands() {
+        // Ponder sends a bare /fi config here; it used to fail without sending anything
         boolean result = configCommand.execute(sender);
 
         assertFalse(result);
-        assertTrue(messages.isEmpty());
+        assertEquals(1, messages.size());
+        assertTrue(lastMessage().contains("Sub-commands: show, set"));
         assertTrue(configService.calls.isEmpty());
     }
 

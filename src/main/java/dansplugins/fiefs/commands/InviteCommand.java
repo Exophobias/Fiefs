@@ -31,7 +31,7 @@ public class InviteCommand extends FiefsCommand {
 
     @Override
     public boolean execute(CommandSender commandSender) {
-        return false;
+        return execute(commandSender, new String[0]);
     }
 
     public boolean execute(CommandSender sender, String[] args) {
@@ -98,7 +98,8 @@ public class InviteCommand extends FiefsCommand {
         persistentData.markDirty();
         Player target = Bukkit.getServer().getPlayer(targetUUID);
         if (target != null) {
-            target.sendMessage(Component.text("You have been invited to " + playersFief.getName() + ". Type /fiefs join (fiefName) to join.", NamedTextColor.AQUA));
+            target.sendMessage(Component.text("You have been invited to " + playersFief.getName()
+                    + ". Type /fi join \"" + playersFief.getName() + "\" to join.", NamedTextColor.AQUA));
         }
         player.sendMessage(Component.text("Invited.", NamedTextColor.GREEN));
         return true;

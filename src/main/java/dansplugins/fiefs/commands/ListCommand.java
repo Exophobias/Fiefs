@@ -1,5 +1,8 @@
 package dansplugins.fiefs.commands;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+
 import com.dansplugins.factionsystem.api.FactionView;
 import dansplugins.fiefs.data.PersistentData;
 import dansplugins.fiefs.integrators.MedievalFactionsIntegrator;
@@ -25,6 +28,7 @@ public class ListCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender) {
         if (!(sender instanceof Player)) {
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 

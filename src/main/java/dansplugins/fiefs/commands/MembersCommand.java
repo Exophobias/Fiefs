@@ -30,6 +30,7 @@ public class MembersCommand extends FiefsCommand {
     @Override
     public boolean execute(CommandSender sender) {
         if (!(sender instanceof Player)) {
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -52,6 +53,7 @@ public class MembersCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 

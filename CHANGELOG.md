@@ -1,5 +1,12 @@
 # Changelog
 
+## Patriam upstream refresh — 2026-11-02
+
+- Integrated official history through 093d346, retaining succession, atomic config and stable MF APIs.
+- Added console refusal and description feedback, usable quoted invitations and bare-command dispatch.
+- Adapted upstream command regression tests to current protection and persistence contracts.
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).

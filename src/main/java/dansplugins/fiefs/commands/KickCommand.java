@@ -41,6 +41,7 @@ public class KickCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 

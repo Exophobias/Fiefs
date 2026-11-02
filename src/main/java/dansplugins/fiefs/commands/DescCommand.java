@@ -35,6 +35,7 @@ public class DescCommand extends FiefsCommand {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player)) {
+            sender.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return false;
         }
 
@@ -62,8 +63,8 @@ public class DescCommand extends FiefsCommand {
         String newDescription = singleQuoteArgs.get(0);
 
         playersFief.setDescription(newDescription);
-
         persistentData.markDirty();
+        player.sendMessage(Component.text("Description set.", NamedTextColor.GREEN));
         return true;
     }
 
