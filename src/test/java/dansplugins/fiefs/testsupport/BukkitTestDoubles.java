@@ -7,12 +7,14 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -157,6 +159,28 @@ public final class BukkitTestDoubles {
     }
 
     /**
+     * An entity of the given type standing in the given chunk — an armor stand, an item frame,
+     * or any other {@link Entity} sub-interface. Answers {@code getLocation()}, returning a
+     * location whose {@code getChunk()} resolves to {@code chunk}, and {@code getWorld()}.
+     */
+    public static <T extends Entity> T entityIn(Class<T> type, Chunk chunk) {
+        World world = worldContaining(chunk);
+
+        Location location = new Location(world, 0, 64, 0);
+
+        return proxy(type, (method, args) -> {
+            if (method.getName().equals("getLocation") && (args == null || args.length == 0)) {
+                return location;
+            }
+            // Keeps the world strongly reachable; see playerInChunk.
+            if (method.getName().equals("getWorld") && (args == null || args.length == 0)) {
+                return world;
+            }
+            throw unsupported(method);
+        });
+    }
+
+    /**
      * A player standing in the given chunk, appending every message sent to it to
      * {@code sentMessages}. Answers {@code sendMessage(String)} and {@code getLocation()},
      * the latter returning a location whose {@code getChunk()} resolves to {@code chunk}.
@@ -240,6 +264,24 @@ public final class BukkitTestDoubles {
             return true;
         }
         return false;
+    }
+
+    /**
+     * A command sender holding exactly the given permission nodes, appending every message sent
+     * to it to {@code sentMessages}. Answers {@code sendMessage(String)} and
+     * {@code hasPermission(String)}.
+     */
+    public static CommandSender senderWithPermissions(Set<String> grantedNodes, List<String> sentMessages) {
+        return proxy(CommandSender.class, (method, args) -> {
+            if (method.getName().equals("sendMessage") && captureMessage(args, sentMessages)) {
+                return null;
+            }
+            if (method.getName().equals("hasPermission") && args != null && args.length == 1
+                    && args[0] instanceof String) {
+                return grantedNodes.contains(args[0]);
+            }
+            throw unsupported(method);
+        });
     }
 
     /**

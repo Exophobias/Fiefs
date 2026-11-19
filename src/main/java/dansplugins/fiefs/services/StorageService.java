@@ -54,6 +54,8 @@ public class StorageService {
     // plugin's own loaded flag remains false, but a caller that catches that failure still must not
     // be able to overwrite the unreadable file with stale or empty in-memory state.
     private boolean loadCompletedCleanly = true;
+    // Saving is also unsafe before load(), or after a load that throws before reading both files.
+    private boolean loadFinished = false;
     private volatile boolean claimCoverageComplete = false;
 
     public StorageService(ConfigService configService, Fiefs fiefs, PersistentData persistentData, Logger logger, MedievalFactionsIntegrator medievalFactionsIntegrator) {
@@ -102,7 +104,7 @@ public class StorageService {
 
     /** Checked owner read-back of both documents, including quarantined extension rows. */
     public void verifyPersistence() {
-        if (!loadCompletedCleanly) {
+        if (!loadFinished || !loadCompletedCleanly) {
             throw new IllegalStateException("Fiefs persistence is not active");
         }
         List<Map<String, String>> expectedFiefs = new ArrayList<>();
@@ -169,6 +171,11 @@ public class StorageService {
     }
 
     public void save() {
+        if (!loadFinished) {
+            System.out.println("ERROR: skipping save because both data files have not been loaded this session. " +
+                    FIEFS_FILE_NAME + "/" + CLAIMED_CHUNKS_FILE_NAME + " were left unchanged.");
+            return;
+        }
         if (!loadCompletedCleanly) {
             System.out.println("ERROR: skipping save because the last load did not complete cleanly. " +
                     "Fix " + FIEFS_FILE_NAME + "/" + CLAIMED_CHUNKS_FILE_NAME + " and restart to try again.");
@@ -184,10 +191,12 @@ public class StorageService {
     }
 
     public void load() {
+        loadFinished = false;
         claimCoverageComplete = false;
         loadCompletedCleanly = true;
         loadFiefs();
         loadClaimedChunks();
+        loadFinished = true;
         claimCoverageComplete = loadCompletedCleanly && quarantinedChunks.isEmpty();
     }
 

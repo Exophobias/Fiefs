@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -55,6 +56,7 @@ class StorageServiceTest {
     void failedSaveKeepsDirtyAndAutosaveRetriesBothDocuments() throws Exception {
         PersistentData data = new PersistentData(null);
         StorageService storage = newStorageService(data);
+        storage.load();
         data.addFief(newFief("Retry"));
         Path blocked = dataFolder().resolve("claimedChunks.json");
         Files.createDirectories(blocked);
@@ -71,6 +73,7 @@ class StorageServiceTest {
     void disposableFixtureRefusesForeignStateAndProvesExactPersistence() {
         PersistentData data = new PersistentData(null);
         StorageService storage = newStorageService(data);
+        storage.load();
         UUID actor = UUID.randomUUID();
         var fixture = new dansplugins.fiefs.externalapi.DisposableFiefsFixture(
                 "PT0123456789", java.util.Set.of(actor), data, storage);
@@ -160,6 +163,7 @@ class StorageServiceTest {
         PersistentData persistentData = new PersistentData(null);
         persistentData.addFief(newFief("Preexisting"));
         StorageService storageService = newStorageService(persistentData);
+        storageService.load();
 
         Map<String, String> good = newFief("Good").save();
         Map<String, String> corrupted = new HashMap<>(newFief("Corrupted").save());
@@ -209,8 +213,9 @@ class StorageServiceTest {
     void save_stillWritesAfterLoadingAnEmptyFile() throws IOException {
         PersistentData persistentData = new PersistentData(null);
         StorageService storageService = newStorageService(persistentData);
-        Path file = Files.createTempFile(tempDir, "empty-before-save-", ".json");
-        storageService.applyFiefs(file.toString());
+        Files.createDirectories(dataFolder());
+        Path file = Files.createFile(dataFolder().resolve("fiefs.json"));
+        storageService.load();
         persistentData.addFief(newFief("CreatedAfterEmptyLoad"));
 
         storageService.save();
@@ -253,6 +258,7 @@ class StorageServiceTest {
     void applyClaimedChunks_loadsCoordinatesAndQuarantinesMalformedRow() throws IOException {
         PersistentData persistentData = new PersistentData(null);
         StorageService storageService = newStorageService(persistentData);
+        storageService.load();
         Map<String, String> good = claimedChunkData("world", 12, -7);
         Map<String, String> corrupted = new HashMap<>(claimedChunkData("world_nether", 3, 4));
         corrupted.put("X", GSON.toJson("not-an-integer"));
@@ -359,10 +365,47 @@ class StorageServiceTest {
     }
 
     @Test
+    void saveBeforeLoadPreservesBothExistingFilesExactlyAndDoesNotCreateMissingFiles() throws IOException {
+        StorageService storage = newStorageService(new PersistentData(null));
+        storage.save();
+        assertFalse(Files.exists(dataFolder()));
+        assertThrows(IllegalStateException.class, storage::verifyPersistence);
+        Files.createDirectories(dataFolder());
+        byte[] fiefs = GSON.toJson(List.of(newFief("Untouched").save())).getBytes(StandardCharsets.UTF_8);
+        byte[] chunks = "[{\"chunk\":\"operator-sentinel\"}]".getBytes(StandardCharsets.UTF_8);
+        Files.write(dataFolder().resolve("fiefs.json"), fiefs);
+        Files.write(dataFolder().resolve("claimedChunks.json"), chunks);
+        storage.save();
+        assertArrayEquals(fiefs, Files.readAllBytes(dataFolder().resolve("fiefs.json")));
+        assertArrayEquals(chunks, Files.readAllBytes(dataFolder().resolve("claimedChunks.json")));
+    }
+
+    @Test
+    void failedSecondDocumentReloadRevokesPreviousSaveAdmission() throws IOException {
+        PersistentData data = new PersistentData(null);
+        StorageService storage = newStorageService(data);
+        storage.load();
+        data.addFief(newFief("Original"));
+        storage.save();
+        byte[] fiefs = Files.readAllBytes(dataFolder().resolve("fiefs.json"));
+        byte[] invalid = "{ malformed claims [".getBytes(StandardCharsets.UTF_8);
+        Files.write(dataFolder().resolve("claimedChunks.json"), invalid);
+        assertThrows(IllegalStateException.class, storage::load);
+        data.addFief(newFief("MustNotPersist"));
+        storage.saveIfDirty();
+        assertTrue(data.isDirty());
+        assertFalse(storage.isClaimCoverageComplete());
+        assertThrows(IllegalStateException.class, storage::verifyPersistence);
+        assertArrayEquals(fiefs, Files.readAllBytes(dataFolder().resolve("fiefs.json")));
+        assertArrayEquals(invalid, Files.readAllBytes(dataFolder().resolve("claimedChunks.json")));
+    }
+
+    @Test
     void save_writesNormallyWhenLoadCompletedCleanly() {
         PersistentData persistentData = new PersistentData(null);
-        persistentData.addFief(newFief("Testopia"));
         StorageService storageService = newStorageService(persistentData);
+        storageService.load();
+        persistentData.addFief(newFief("Testopia"));
         assertTrue(storageService.isLoadCompletedCleanly());
 
         storageService.save();

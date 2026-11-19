@@ -62,11 +62,12 @@ class FactionUnclaimDeferralTest {
         factions.setFactionClaim(other.getChunkAt(-7, 12), new FactionId("realm"));
         Fiefs plugin = MockBukkit.load(Fiefs.class);
         PersistentData data = new PersistentData(null);
+        StorageService storage = new StorageService(new ConfigService(plugin), plugin, data,
+                new Logger(plugin), null);
+        storage.load();
         data.addChunk(claim("first", -7, 12, "Old Camp"));
         data.addChunk(claim("first", -7, 13, "Neighbour"));
         data.addChunk(claim("other", -7, 12, "Other World"));
-        StorageService storage = new StorageService(new ConfigService(plugin), plugin, data,
-                new Logger(plugin), null);
         DeferredUnclaimStore pending = new DeferredUnclaimStore(
                 plugin.getDataFolder().toPath().resolve("pendingUnclaims.bin"));
         pending.load();
@@ -116,13 +117,14 @@ class FactionUnclaimDeferralTest {
         World world = server.addSimpleWorld("camp");
         Fiefs plugin = MockBukkit.load(Fiefs.class);
         PersistentData data = new PersistentData(null);
-        data.addChunk(claim("camp", 3, -4, "Old Camp"));
         StorageService storage = new StorageService(new ConfigService(plugin), plugin, data,
                 new Logger(plugin), null) {
             @Override public void forceClaimCleanupDurably() throws IOException {
                 throw new IOException("simulated directory force failure");
             }
         };
+        storage.load();
+        data.addChunk(claim("camp", 3, -4, "Old Camp"));
         DeferredUnclaimStore pending = new DeferredUnclaimStore(
                 plugin.getDataFolder().toPath().resolve("pendingUnclaims.bin"));
         pending.load();
@@ -154,13 +156,14 @@ class FactionUnclaimDeferralTest {
         World world = server.addSimpleWorld("old-camp");
         Fiefs plugin = MockBukkit.load(Fiefs.class);
         PersistentData data = new PersistentData(null);
-        data.addChunk(claim("old-camp", 8, 9, "Old Camp"));
         StorageService storage = new StorageService(new ConfigService(plugin), plugin, data,
                 new Logger(plugin), null) {
             @Override public void forceClaimCleanupDurably() throws IOException {
                 throw new IOException("simulated file force failure");
             }
         };
+        storage.load();
+        data.addChunk(claim("old-camp", 8, 9, "Old Camp"));
         DeferredUnclaimStore pending = new DeferredUnclaimStore(
                 plugin.getDataFolder().toPath().resolve("pendingUnclaims.bin"));
         pending.load();
